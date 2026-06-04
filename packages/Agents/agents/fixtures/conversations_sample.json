@@ -1,0 +1,26 @@
+[
+  {
+    "brand_id": "default",
+    "user_id": "u_1001",
+    "username": "@founder_jane",
+    "group_chat_id": "grp_ai_founders",
+    "text": "Honestly our biggest headache is following up with leads — we lose half of them because nobody DMs back in time. Is there a tool that automates that without sounding like a bot?",
+    "ts": "2026-06-03T09:12:00+00:00"
+  },
+  {
+    "brand_id": "default",
+    "user_id": "u_1002",
+    "username": "@curious_sam",
+    "group_chat_id": "grp_ai_founders",
+    "text": "Anyone here actually using AI for outreach? Curious how it's working out.",
+    "ts": "2026-06-03T10:01:00+00:00"
+  },
+  {
+    "brand_id": "default",
+    "user_id": "u_1003",
+    "username": "@just_lurking",
+    "group_chat_id": "grp_ai_founders",
+    "text": "lol good morning everyone",
+    "ts": "2026-06-03T10:05:00+00:00"
+  }
+]

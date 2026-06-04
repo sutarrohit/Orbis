@@ -87,6 +87,18 @@ class Settings:
         default_factory=lambda: _env_int("SEARCH_MIN_RELEVANCE", 30)
     )
 
+    # ── Research agent knobs ─────────────────────────────────────────────────
+    research_use_llm: bool = field(
+        default_factory=lambda: _env_bool("RESEARCH_USE_LLM", True)
+    )
+    # Minimum score (0-100) to save a prospect; the auto-DM bar is higher (§7.2).
+    research_prospect_min: int = field(
+        default_factory=lambda: _env_int("RESEARCH_PROSPECT_MIN", 50)
+    )
+    research_autodm_min: int = field(
+        default_factory=lambda: _env_int("RESEARCH_AUTODM_MIN", 60)
+    )
+
     # ── File store (stand-in for Postgres) ───────────────────────────────────
     data_dir: Path = field(
         default_factory=lambda: Path(
@@ -101,6 +113,14 @@ class Settings:
     @property
     def leads_file(self) -> Path:
         return self.data_dir / "leads.json"
+
+    @property
+    def conversations_file(self) -> Path:
+        return self.data_dir / "conversations.json"
+
+    @property
+    def group_members_file(self) -> Path:
+        return self.data_dir / "group_members.json"
 
     @property
     def token_usage_file(self) -> Path:

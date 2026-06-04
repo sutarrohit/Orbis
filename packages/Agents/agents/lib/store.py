@@ -23,6 +23,7 @@ import threading
 from pathlib import Path
 
 from agents.lib.config import settings
+from agents.schemas.research import ConversationRecord, GroupMemberRecord
 from agents.schemas.search import CommunityRecord
 from agents.schemas.talk import LeadRecord
 
@@ -126,6 +127,10 @@ class LeadStore:
     def for_brand(self, brand_id: str) -> list[LeadRecord]:
         return [lead for lead in self.all() if lead.brand_id == brand_id]
 
+    def user_ids(self, brand_id: str) -> set[str]:
+        """Set of ``user_id``s already a lead for ``brand_id`` (pre-filter helper)."""
+        return {lead.user_id for lead in self.for_brand(brand_id)}
+
     def upsert(self, record: LeadRecord) -> bool:
         """Insert ``record`` if its ``(brand_id, user_id)`` is not already stored.
 
@@ -147,3 +152,41 @@ class LeadStore:
             self.path,
         )
         return True
+
+
+class ConversationStore:
+    """Read-only repository for recent conversations (the gateway → Research bus).
+
+    Research only reads these; the gateway writes them. No upsert is exposed here
+    — when Postgres lands this becomes a query against the ``conversations`` table.
+    """
+
+    def __init__(self, path: Path | None = None):
+        self.path = path or settings.conversations_file
+
+    def all(self) -> list[ConversationRecord]:
+        return [
+            ConversationRecord.model_validate(r) for r in _read_json_list(self.path)
+        ]
+
+    def for_brand(self, brand_id: str) -> list[ConversationRecord]:
+        return [c for c in self.all() if c.brand_id == brand_id]
+
+
+class GroupMemberStore:
+    """Read-only repository for scraped group members (gateway → Research bus).
+
+    The outbound-prospect pool. Research reads members with a username that are
+    not already leads; the gateway writes them after joining and scraping a group.
+    """
+
+    def __init__(self, path: Path | None = None):
+        self.path = path or settings.group_members_file
+
+    def all(self) -> list[GroupMemberRecord]:
+        return [
+            GroupMemberRecord.model_validate(r) for r in _read_json_list(self.path)
+        ]
+
+    def for_brand(self, brand_id: str) -> list[GroupMemberRecord]:
+        return [m for m in self.all() if m.brand_id == brand_id]

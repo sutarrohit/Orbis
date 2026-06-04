@@ -1,0 +1,26 @@
+[
+  {
+    "brand_id": "default",
+    "user_id": "u_2001",
+    "username": "@growth_marco",
+    "group_chat_id": "grp_saas_growth",
+    "bio": "Head of Growth at a seed-stage SaaS. Obsessed with outbound funnels and lead automation.",
+    "activity_note": "posts most days, replied in 3 threads this week"
+  },
+  {
+    "brand_id": "default",
+    "user_id": "u_2002",
+    "username": "@designer_lin",
+    "group_chat_id": "grp_saas_growth",
+    "bio": "Freelance illustrator. Cats, coffee, occasional UI work.",
+    "activity_note": "rarely posts"
+  },
+  {
+    "brand_id": "default",
+    "user_id": "u_2003",
+    "username": "",
+    "group_chat_id": "grp_saas_growth",
+    "bio": "Building an AI SDR. Looking for ways to scale cold outreach safely.",
+    "activity_note": "active"
+  }
+]

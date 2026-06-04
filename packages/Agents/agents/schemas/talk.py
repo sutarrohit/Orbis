@@ -142,6 +142,14 @@ class LeadRecord(BaseModel):
     note: str = Field(
         default="", description="Why this person was flagged (context for outreach)."
     )
+    pain_points: list[str] = Field(
+        default_factory=list,
+        description="Specific needs/frustrations surfaced (mainly set by Research).",
+    )
+    recommended_approach: str = Field(
+        default="",
+        description="How to open with this lead (mainly set by Research outbound).",
+    )
     source_group_chat_id: str = Field(
         default="", description="The group the lead was first seen in."
     )
