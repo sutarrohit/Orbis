@@ -17,6 +17,8 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from agents.lib.store import CommunityStore, LeadStore
+from agents.research import run_research
+from agents.schemas.research import ResearchRunRequest, ResearchRunResult
 from agents.schemas.search import CommunityRecord, SearchRunResult
 from agents.search import run_search
 from agents.schemas.search import SearchRunRequest
@@ -54,6 +56,14 @@ def trigger_talk(ctx: TalkContext, account_active: bool = True) -> TalkDecision:
     the dashboard / integration tests HTTP parity with the same function.
     """
     return decide_reply(ctx, account_active=account_active)
+
+
+@router.post("/agents/research/run", response_model=ResearchRunResult, status_code=201)
+def trigger_research(request: ResearchRunRequest) -> ResearchRunResult:
+    """Run the Research agent once: score conversations + members into leads."""
+    return run_research(
+        request.brand_id, niche=request.niche, use_llm=request.use_llm
+    )
 
 
 @router.get("/agents/leads", response_model=list[LeadRecord])
