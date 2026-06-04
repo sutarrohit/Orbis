@@ -15,12 +15,13 @@ Wire into the app with::
 from __future__ import annotations
 
 from fastapi import APIRouter
-from pydantic import BaseModel, Field
 
-from agents.lib.store import CommunityStore
+from agents.lib.store import CommunityStore, LeadStore
 from agents.schemas.search import CommunityRecord, SearchRunResult
 from agents.search import run_search
 from agents.schemas.search import SearchRunRequest
+from agents.schemas.talk import LeadRecord, TalkContext, TalkDecision
+from agents.talk import decide_reply
 
 router = APIRouter()
 
@@ -42,4 +43,21 @@ def trigger_search(request: SearchRunRequest) -> SearchRunResult:
 def list_communities(brand_id: str | None = None) -> list[CommunityRecord]:
     """List discovered communities, optionally filtered by brand."""
     store = CommunityStore()
+    return store.for_brand(brand_id) if brand_id else store.all()
+
+
+@router.post("/agents/talk/decide", response_model=TalkDecision)
+def trigger_talk(ctx: TalkContext, account_active: bool = True) -> TalkDecision:
+    """Judge one inbound group message (the gateway's per-message entry point).
+
+    In production the gateway imports ``decide_reply`` directly; this route gives
+    the dashboard / integration tests HTTP parity with the same function.
+    """
+    return decide_reply(ctx, account_active=account_active)
+
+
+@router.get("/agents/leads", response_model=list[LeadRecord])
+def list_leads(brand_id: str | None = None) -> list[LeadRecord]:
+    """List flagged leads, optionally filtered by brand."""
+    store = LeadStore()
     return store.for_brand(brand_id) if brand_id else store.all()

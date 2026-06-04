@@ -77,6 +77,47 @@ def set_state(
         )
 
 
+def count_actions_today(
+    brand_id: str, agent_type: str, action: str, *, account_id: str | None = None
+) -> int:
+    """Count activity-feed entries for ``action`` logged today (UTC).
+
+    Backs deterministic per-day rate limits (Implentation.md §11) until Postgres
+    exists. Optionally scope to a single ``account_id`` (matched in ``detail``).
+    Best-effort: a missing/corrupt feed counts as zero.
+    """
+    today = datetime.now(timezone.utc).date().isoformat()
+    path = settings.activity_file
+    if not path.exists():
+        return 0
+    count = 0
+    try:
+        with path.open("r", encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if (
+                    rec.get("brand_id") == brand_id
+                    and rec.get("agent") == agent_type
+                    and rec.get("action") == action
+                    and str(rec.get("ts", "")).startswith(today)
+                ):
+                    if account_id is not None and (
+                        rec.get("detail", {}).get("account_id") != account_id
+                    ):
+                        continue
+                    count += 1
+    except OSError as exc:
+        logger.debug("Could not read activity for count: %s", exc)
+        return 0
+    return count
+
+
 def record_activity(
     brand_id: str, agent_type: str, action: str, detail: dict | None = None
 ) -> None:

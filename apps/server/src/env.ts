@@ -18,7 +18,13 @@ const EnvSchema = z.object({
   DIRECT_URL: z.url(),
   TELEGRAM_BOT_TOKEN: z.string().min(1),
   TELEGRAM_WEBHOOK_SECRET: z.string().min(16), // random string you generate
-  PUBLIC_URL: z.url() // public base URL used to register the webhook
+  PUBLIC_URL: z.url(), // public base URL used to register the webhook
+
+  // Better Auth
+  BETTER_AUTH_SECRET: z.string().min(16), // random secret used to sign sessions/tokens
+  BETTER_AUTH_URL: z.url().default("http://localhost:4000"), // base URL the auth server runs on
+  GOOGLE_CLIENT_ID: z.string().min(1),
+  GOOGLE_CLIENT_SECRET: z.string().min(1)
 });
 
 export type env = z.infer<typeof EnvSchema>;

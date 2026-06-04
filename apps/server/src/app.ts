@@ -1,5 +1,6 @@
 import createApp from "./lib/create-app.js";
 import { configureOpenAPI } from "./lib/configure-open-api.js";
+import { auth } from "./lib/auth.js";
 import { webhooksRouter } from "./routes/webhooks/index.js";
 import { conversationsRouter } from "./routes/conversations/index.js";
 
@@ -14,6 +15,10 @@ app.get("/health", (c: Context<AppBinding>) => {
     status: "ok"
   });
 });
+
+// Better Auth owns every route under /api/auth/* (sign-in, sign-up, OAuth
+// callbacks, session, etc.). Hand the raw request straight to its handler.
+app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
 // External webhook endpoints live at the root (unversioned), like /health.
 app.route("/webhooks", webhooksRouter);

@@ -24,6 +24,7 @@ from pathlib import Path
 
 from agents.lib.config import settings
 from agents.schemas.search import CommunityRecord
+from agents.schemas.talk import LeadRecord
 
 logger = logging.getLogger(__name__)
 
@@ -102,3 +103,47 @@ class CommunityStore:
             self.path,
         )
         return inserted, duplicates
+
+
+class LeadStore:
+    """Repository for flagged leads (dedup key ``(brand_id, user_id)``).
+
+    Shared by Talk (flags interested group members) and the future Research
+    agent (scores inbound/outbound prospects). First flag wins — a re-flag of an
+    existing lead is a no-op, so the original ``created_at`` and status are kept.
+    """
+
+    def __init__(self, path: Path | None = None):
+        self.path = path or settings.leads_file
+
+    @staticmethod
+    def _key(brand_id: str, user_id: str) -> tuple[str, str]:
+        return (brand_id, user_id)
+
+    def all(self) -> list[LeadRecord]:
+        return [LeadRecord.model_validate(r) for r in _read_json_list(self.path)]
+
+    def for_brand(self, brand_id: str) -> list[LeadRecord]:
+        return [lead for lead in self.all() if lead.brand_id == brand_id]
+
+    def upsert(self, record: LeadRecord) -> bool:
+        """Insert ``record`` if its ``(brand_id, user_id)`` is not already stored.
+
+        Returns True if a new lead was written, False if it already existed.
+        """
+        with _LOCK:
+            rows = _read_json_list(self.path)
+            keys = {
+                self._key(r.get("brand_id", ""), r.get("user_id", "")) for r in rows
+            }
+            if self._key(record.brand_id, record.user_id) in keys:
+                return False
+            rows.append(record.model_dump())
+            _write_json_list(self.path, rows)
+        logger.info(
+            "lead upsert: +1 (%s/%s) file=%s",
+            record.brand_id,
+            record.user_id,
+            self.path,
+        )
+        return True
