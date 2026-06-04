@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Env / secrets
+.env
+
+# Agent runtime data (the file-based Postgres stand-in). Fixtures are NOT here
+# (they live under agents/fixtures/) so they stay checked in.
+/data/
+
+# OS
+.DS_Store
+Thumbs.db
