@@ -15,6 +15,7 @@ import uuid
 from datetime import datetime, timezone
 
 from db.connection import get_connection
+
 from schemas.prediction import PricePredictionResponse
 from schemas.saved_result import (PredictionData, ResultType,
                                   SavedResultDetail, SavedResultMeta)

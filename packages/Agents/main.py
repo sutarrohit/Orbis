@@ -1,5 +1,4 @@
 import logging
-from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
@@ -8,28 +7,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from scalar_fastapi import get_scalar_api_reference
 
-from db.migrations import run_migrations
 from errors.errors import PredictionAPIError
-from routers import prediction, results
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Run DB migrations on startup."""
-    run_migrations()
-    yield
-
+from routers import agents
 
 app = FastAPI(
-    title="Kronos Prediction Server",
-    description="Fetch OHLCV data and predict future prices with selectable Kronos models.",
+    title="PostPilot Agents API",
+    description="Agent layer for PostPilot — the five-agent squad (Search built so far).",
     version="0.1.0",
-    lifespan=lifespan,
 )
 
 # Include Routers
-app.include_router(prediction.router, prefix="/api", tags=["Prediction"])
-app.include_router(results.router, prefix="/api", tags=["Results"])
+app.include_router(agents.router, prefix="/api", tags=["Agents"])
 
 app.add_middleware(
     CORSMiddleware,

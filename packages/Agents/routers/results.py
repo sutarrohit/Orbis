@@ -24,4 +24,3 @@ def save_result(request: SaveResultRequest) -> SavedResultDetail:
 def list_saved_results() -> list[SavedResultMeta]:
     """Return metadata for all saved results, newest first."""
     return saved_result_service.list_all()
-
