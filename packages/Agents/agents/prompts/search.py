@@ -7,7 +7,7 @@ can be iterated on without touching control flow.
 
 from __future__ import annotations
 
-from agents.lib.firecrawl_client import WebSearchResult
+from agents.search.firecrawl_client import WebSearchResult
 
 # Cap how much page text we hand the model per result, to keep token use sane.
 _MAX_CHARS_PER_RESULT = 4000

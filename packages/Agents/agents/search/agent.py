@@ -26,9 +26,15 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
+from agents.constants.search import (
+    AT_RE,
+    REGEX_DEFAULT_RELEVANCE,
+    RESERVED_USERNAMES,
+    TME_RE,
+    default_queries,
+)
 from agents.lib import guardrails
 from agents.lib.config import settings
-from agents.lib.firecrawl_client import WebSearchResult, search
 from agents.lib.llm import brain
 from agents.lib.store import CommunityStore
 from agents.prompts.search import render_search_prompt
@@ -38,13 +44,7 @@ from agents.schemas.search import (
     SearchResult,
     SearchRunResult,
 )
-from agents.search.constants import (
-    AT_RE,
-    REGEX_DEFAULT_RELEVANCE,
-    RESERVED_USERNAMES,
-    TME_RE,
-    default_queries,
-)
+from agents.search.firecrawl_client import WebSearchResult, search
 
 logger = logging.getLogger(__name__)
 
