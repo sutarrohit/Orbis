@@ -99,6 +99,10 @@ class Settings:
         return self.data_dir / "communities.json"
 
     @property
+    def leads_file(self) -> Path:
+        return self.data_dir / "leads.json"
+
+    @property
     def token_usage_file(self) -> Path:
         return self.data_dir / "token_usage.jsonl"
 
