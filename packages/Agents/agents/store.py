@@ -1,0 +1,104 @@
+"""
+agents/store.py
+───────────────
+File-based stand-in for Postgres ("the noticeboard").
+
+Implentation.md says agents coordinate *only* through the database and that all
+writes are idempotent via natural unique keys. Until Postgres exists we honour
+the same contract against a local JSON file:
+
+  - one JSON file per collection (``data/communities.json``)
+  - upserts keyed by a natural unique key — ``(brand_id, handle)`` for communities
+  - re-running a worker never creates duplicates
+
+The public surface (``CommunityStore``) is intentionally repository-shaped so it
+can be replaced by real DB repository functions later without changing any agent.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import threading
+from pathlib import Path
+
+from agents.config import settings
+from agents.schemas import CommunityRecord
+
+logger = logging.getLogger(__name__)
+
+# A process-wide lock keeps concurrent writes (e.g. manual run + scheduler)
+# from clobbering the file. Postgres will handle this for real later.
+_LOCK = threading.Lock()
+
+
+def _read_json_list(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    try:
+        with path.open("r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data if isinstance(data, list) else []
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("Could not read %s (%s); treating as empty.", path, exc)
+        return []
+
+
+def _write_json_list(path: Path, rows: list[dict]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    with tmp.open("w", encoding="utf-8") as fh:
+        json.dump(rows, fh, indent=2, ensure_ascii=False)
+    tmp.replace(path)  # atomic on the same filesystem
+
+
+class CommunityStore:
+    """Repository for discovered communities (``status=pending_join`` on insert)."""
+
+    def __init__(self, path: Path | None = None):
+        self.path = path or settings.communities_file
+
+    @staticmethod
+    def _key(brand_id: str, handle: str) -> tuple[str, str]:
+        return (brand_id, handle)
+
+    def all(self) -> list[CommunityRecord]:
+        return [CommunityRecord.model_validate(r) for r in _read_json_list(self.path)]
+
+    def for_brand(self, brand_id: str) -> list[CommunityRecord]:
+        return [c for c in self.all() if c.brand_id == brand_id]
+
+    def upsert_many(self, records: list[CommunityRecord]) -> tuple[int, int]:
+        """Insert any records whose ``(brand_id, handle)`` is not already stored.
+
+        Idempotent: existing keys are left untouched (first discovery wins, so we
+        keep the original ``created_at``). Returns ``(inserted, duplicates)``.
+        """
+        with _LOCK:
+            existing_rows = _read_json_list(self.path)
+            existing_keys = {
+                self._key(r.get("brand_id", ""), r.get("handle", ""))
+                for r in existing_rows
+            }
+
+            inserted = 0
+            duplicates = 0
+            for rec in records:
+                key = self._key(rec.brand_id, rec.handle)
+                if key in existing_keys:
+                    duplicates += 1
+                    continue
+                existing_rows.append(rec.model_dump())
+                existing_keys.add(key)
+                inserted += 1
+
+            if inserted:
+                _write_json_list(self.path, existing_rows)
+
+        logger.info(
+            "communities upsert: +%d new, %d duplicates (file=%s)",
+            inserted,
+            duplicates,
+            self.path,
+        )
+        return inserted, duplicates
