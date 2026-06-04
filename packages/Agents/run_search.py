@@ -22,7 +22,7 @@ import argparse
 import logging
 
 from agents.lib.config import settings
-from agents.roles.search import run_search
+from agents.search import run_search
 
 
 def main() -> None:

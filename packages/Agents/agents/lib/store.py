@@ -23,7 +23,7 @@ import threading
 from pathlib import Path
 
 from agents.lib.config import settings
-from agents.lib.schemas import CommunityRecord
+from agents.schemas.search import CommunityRecord
 
 logger = logging.getLogger(__name__)
 

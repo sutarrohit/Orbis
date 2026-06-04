@@ -1,7 +1,7 @@
 """
-agents/prompts.py
-─────────────────
-Prompt rendering for the agent layer. Kept separate from agent logic so prompts
+agents/prompts/search.py
+─────────────────────────
+Prompt rendering for the Search agent. Kept separate from agent logic so prompts
 can be iterated on without touching control flow.
 """
 

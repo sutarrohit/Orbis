@@ -1,5 +1,5 @@
 """
-agents/constants/search.py
+agents/search/constants.py
 ───────────────────────────
 Fixed values for the Search agent, kept out of the control-flow code:
 Telegram handle patterns, reserved (non-community) usernames, the default

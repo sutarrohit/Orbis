@@ -17,9 +17,9 @@ from __future__ import annotations
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from agents.lib.schemas import CommunityRecord, SearchRunResult
 from agents.lib.store import CommunityStore
-from agents.roles.search import run_search
+from agents.schemas.search import CommunityRecord, SearchRunResult
+from agents.search import run_search
 
 router = APIRouter()
 

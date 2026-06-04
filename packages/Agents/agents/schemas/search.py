@@ -1,7 +1,7 @@
 """
-agents/schemas.py
-─────────────────
-Pydantic v2 models for the agent layer.
+agents/schemas/search.py
+─────────────────────────
+Pydantic v2 models for the Search agent.
 
 Two kinds of model live here:
 

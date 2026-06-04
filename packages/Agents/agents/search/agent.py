@@ -1,5 +1,5 @@
 """
-agents/roles/search.py — Search agent (spawnable worker)
+agents/search/agent.py — Search agent (spawnable worker)
 ────────────────────────────────────────────────────────
 Web-search for relevant Telegram handles → save them as ``communities`` with
 ``status = pending_join`` and a relevance estimate. **Search discovers but does
@@ -26,25 +26,25 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
-from agents.constants.prompts import render_search_prompt
-from agents.constants.search import (
+from agents.lib import guardrails
+from agents.lib.config import settings
+from agents.lib.firecrawl_client import WebSearchResult, search
+from agents.lib.llm import brain
+from agents.lib.store import CommunityStore
+from agents.prompts.search import render_search_prompt
+from agents.schemas.search import (
+    CommunityRecord,
+    FoundCommunity,
+    SearchResult,
+    SearchRunResult,
+)
+from agents.search.constants import (
     AT_RE,
     REGEX_DEFAULT_RELEVANCE,
     RESERVED_USERNAMES,
     TME_RE,
     default_queries,
 )
-from agents.lib import guardrails
-from agents.lib.config import settings
-from agents.lib.firecrawl_client import WebSearchResult, search
-from agents.lib.llm import brain
-from agents.lib.schemas import (
-    CommunityRecord,
-    FoundCommunity,
-    SearchResult,
-    SearchRunResult,
-)
-from agents.lib.store import CommunityStore
 
 logger = logging.getLogger(__name__)
 
