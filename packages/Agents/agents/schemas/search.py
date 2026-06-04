@@ -25,6 +25,25 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+
+
+class SearchRunRequest(BaseModel):
+    """Body for triggering the Search agent."""
+
+    niche: str = Field(description="The brand's niche, e.g. 'AI startup founders'.")
+    brand_id: str = Field(
+        default="default", description="Which brand to attribute finds to."
+    )
+    queries: list[str] | None = Field(
+        default=None,
+        description="Override the web search queries. Defaults to one derived from the niche.",
+    )
+    limit: int | None = Field(default=None, description="Max web results per query.")
+    use_llm: bool | None = Field(default=None, description="Override SEARCH_USE_LLM.")
+    firecrawl_mode: str | None = Field(
+        default=None, description="'live' or 'fixture' override."
+    )
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Search — decision schema (what the LLM returns)
 # ─────────────────────────────────────────────────────────────────────────────

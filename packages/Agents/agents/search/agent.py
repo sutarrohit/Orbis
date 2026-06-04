@@ -26,24 +26,16 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
-from agents.constants.search import (
-    AT_RE,
-    REGEX_DEFAULT_RELEVANCE,
-    RESERVED_USERNAMES,
-    TME_RE,
-    default_queries,
-)
+from agents.constants.search import (AT_RE, REGEX_DEFAULT_RELEVANCE,
+                                     RESERVED_USERNAMES, TME_RE,
+                                     default_queries)
 from agents.lib import guardrails
 from agents.lib.config import settings
 from agents.lib.llm import brain
 from agents.lib.store import CommunityStore
 from agents.prompts.search import render_search_prompt
-from agents.schemas.search import (
-    CommunityRecord,
-    FoundCommunity,
-    SearchResult,
-    SearchRunResult,
-)
+from agents.schemas.search import (CommunityRecord, FoundCommunity,
+                                   SearchResult, SearchRunResult)
 from agents.search.firecrawl_client import WebSearchResult, search
 
 logger = logging.getLogger(__name__)
@@ -133,6 +125,8 @@ def run_search(
     queries = queries or default_queries(niche)
     use_llm = settings.search_use_llm if use_llm is None else use_llm
     mode = (firecrawl_mode or settings.firecrawl_mode).strip().lower()
+    
+   
 
     empty = SearchRunResult(
         brand_id=brand_id,
