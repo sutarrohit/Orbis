@@ -23,8 +23,9 @@ from dotenv import load_dotenv
 # Load .env once, at import time. The file already exists in this repo.
 load_dotenv()
 
-# Repository root for this package (D:\Orbis\packages\Agents)
-PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+# Repository root for this package (D:\Orbis\packages\Agents).
+# This file lives at agents/lib/config.py → parents[2] is the package root.
+PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _env_bool(name: str, default: bool) -> bool:

@@ -22,7 +22,7 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
-from agents.config import settings
+from agents.lib.config import settings
 
 logger = logging.getLogger(__name__)
 

@@ -21,7 +21,7 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
-from agents.config import settings
+from agents.lib.config import settings
 
 logger = logging.getLogger(__name__)
 

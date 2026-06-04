@@ -22,8 +22,8 @@ import logging
 import threading
 from pathlib import Path
 
-from agents.config import settings
-from agents.schemas import CommunityRecord
+from agents.lib.config import settings
+from agents.lib.schemas import CommunityRecord
 
 logger = logging.getLogger(__name__)
 

@@ -24,54 +24,31 @@ still produces output.
 from __future__ import annotations
 
 import logging
-import re
 from datetime import datetime, timezone
 
-from agents import guardrails
-from agents.config import settings
-from agents.firecrawl_client import WebSearchResult, search
-from agents.llm import brain
-from agents.prompts import render_search_prompt
-from agents.schemas import (
+from agents.constants.prompts import render_search_prompt
+from agents.constants.search import (
+    AT_RE,
+    REGEX_DEFAULT_RELEVANCE,
+    RESERVED_USERNAMES,
+    TME_RE,
+    default_queries,
+)
+from agents.lib import guardrails
+from agents.lib.config import settings
+from agents.lib.firecrawl_client import WebSearchResult, search
+from agents.lib.llm import brain
+from agents.lib.schemas import (
     CommunityRecord,
     FoundCommunity,
     SearchResult,
     SearchRunResult,
 )
-from agents.store import CommunityStore
+from agents.lib.store import CommunityStore
 
 logger = logging.getLogger(__name__)
 
 AGENT_TYPE = "search"
-
-# Relevance assigned to a handle found only by the regex backstop (the LLM did
-# not score it). Neutral-ish so it survives the default threshold but is clearly
-# a safety-net find (``found_via="regex"``).
-_REGEX_DEFAULT_RELEVANCE = 50
-
-# ── Telegram handle extraction ──────────────────────────────────────────────
-# t.me / telegram.me links, including invite (+hash, /joinchat/hash) and the
-# /s/ web-preview prefix.
-_TME_RE = re.compile(
-    r"(?:https?://)?(?:www\.)?t(?:elegram)?\.me/(s/)?(\+[\w-]+|joinchat/[\w-]+|[A-Za-z0-9_]{3,32})",
-    re.IGNORECASE,
-)
-# Bare @usernames (5-32 chars per Telegram rules; allow 4+). Must not be part of
-# an email address — so the char before '@' must not be alphanumeric/._%+-.
-_AT_RE = re.compile(r"(?<![\w.%+\-])@([A-Za-z][A-Za-z0-9_]{3,31})\b")
-
-# Usernames that are Telegram system paths, not communities.
-_RESERVED = {
-    "share",
-    "iv",
-    "addstickers",
-    "addtheme",
-    "proxy",
-    "socks",
-    "login",
-    "joinchat",
-    "s",
-}
 
 
 def normalize_handle(raw: str) -> str | None:
@@ -84,7 +61,7 @@ def normalize_handle(raw: str) -> str | None:
         return None
     raw = raw.strip().strip(".,)\"'<>")
 
-    m = _TME_RE.search(raw)
+    m = TME_RE.search(raw)
     if m:
         token = m.group(2)
         if token.startswith("+"):
@@ -92,14 +69,14 @@ def normalize_handle(raw: str) -> str | None:
         if token.lower().startswith("joinchat/"):
             return f"https://t.me/{token}"
         username = token.lower()
-        if username in _RESERVED:
+        if username in RESERVED_USERNAMES:
             return None
         return f"@{username}"
 
-    m = _AT_RE.search(raw if raw.startswith("@") else f" {raw}")
+    m = AT_RE.search(raw if raw.startswith("@") else f" {raw}")
     if m:
         username = m.group(1).lower()
-        if username in _RESERVED:
+        if username in RESERVED_USERNAMES:
             return None
         return f"@{username}"
 
@@ -112,9 +89,9 @@ def _regex_extract(results: list[WebSearchResult]) -> dict[str, str]:
     for r in results:
         text = r.text
         candidates: list[str] = []
-        for m in _TME_RE.finditer(text):
+        for m in TME_RE.finditer(text):
             candidates.append(m.group(0))
-        for m in _AT_RE.finditer(text):
+        for m in AT_RE.finditer(text):
             candidates.append(m.group(0))
         for cand in candidates:
             handle = normalize_handle(cand)
@@ -139,11 +116,6 @@ def _decide_with_llm(niche: str, results: list[WebSearchResult]) -> SearchResult
     return result
 
 
-def _default_queries(niche: str) -> list[str]:
-    # One query by default to conserve Firecrawl credits; override via `queries`.
-    return [f"best {niche} Telegram groups and channels"]
-
-
 def run_search(
     niche: str,
     *,
@@ -158,7 +130,7 @@ def run_search(
     Safe to call manually or from the Leader: the ``is_running`` guard makes a
     concurrent second call a no-op.
     """
-    queries = queries or _default_queries(niche)
+    queries = queries or default_queries(niche)
     use_llm = settings.search_use_llm if use_llm is None else use_llm
     mode = (firecrawl_mode or settings.firecrawl_mode).strip().lower()
 
@@ -243,7 +215,7 @@ def run_search(
                 brand_id=brand_id,
                 handle=handle,
                 name=handle,
-                niche_relevance=_REGEX_DEFAULT_RELEVANCE,
+                niche_relevance=REGEX_DEFAULT_RELEVANCE,
                 status="pending_join",
                 source="search",
                 found_via="regex",

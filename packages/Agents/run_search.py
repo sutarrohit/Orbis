@@ -21,7 +21,7 @@ from __future__ import annotations
 import argparse
 import logging
 
-from agents.config import settings
+from agents.lib.config import settings
 from agents.roles.search import run_search
 
 

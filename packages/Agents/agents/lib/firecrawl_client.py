@@ -20,7 +20,7 @@ import json
 import logging
 from dataclasses import dataclass
 
-from agents.config import settings
+from agents.lib.config import settings
 
 logger = logging.getLogger(__name__)
 
