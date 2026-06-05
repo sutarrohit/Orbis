@@ -2,8 +2,8 @@
 
 import * as React from "react";
 
-import { SearchForm } from "@/components/search-form";
-import { VersionSwitcher } from "@/components/version-switcher";
+import { SearchForm } from "@/components/sidebar/search-form";
+import { VersionSwitcher } from "@/components/sidebar/version-switcher";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Sidebar,
@@ -25,45 +25,62 @@ import {
   Bot,
   CircleUser,
   Users,
+  Target,
+  Lightbulb,
+  MessagesSquare,
+  Settings,
   Rocket,
   Download,
-  FolderTree,
-  BookOpen,
-  GitPullRequest
+  FolderTree
 } from "lucide-react";
 import { NavUser } from "./nav-user";
 
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg"
-  },
   mainMenu: [
     {
       title: "Dashboard",
-      url: "#",
+      url: "/",
       icon: LayoutDashboard
     },
     {
       title: "Activity",
-      url: "#",
+      url: "/activity",
       icon: Activity
     },
     {
       title: "Agent Config",
-      url: "#",
+      url: "/agent-config",
       icon: Bot
     },
     {
       title: "Accounts",
-      url: "#",
+      url: "/accounts",
       icon: CircleUser
     },
     {
       title: "Communities",
-      url: "#",
+      url: "/communities",
       icon: Users
+    },
+    {
+      title: "Leads",
+      url: "/leads",
+      icon: Target
+    },
+    {
+      title: "Learnings",
+      url: "/learnings",
+      icon: Lightbulb
+    },
+    {
+      title: "Conversations",
+      url: "/conversations",
+      icon: MessagesSquare
+    },
+    {
+      title: "Settings",
+      url: "/settings",
+      icon: Settings
     }
   ],
   navMain: [
@@ -108,11 +125,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenuButton size='lg' asChild>
               <a href='#'>
                 <div className='flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground'>
-                  A
+                  O
                 </div>
                 <div className='grid flex-1 text-left text-sm leading-tight'>
-                  <span className='truncate font-medium'>Acme Inc</span>
-                  <span className='truncate text-xs'>Enterprise</span>
+                  <span className='truncate font-medium'>Orbis</span>
+                  <span className='truncate text-xs'>AI Agent Platform</span>
                 </div>
               </a>
             </SidebarMenuButton>
@@ -176,7 +193,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarRail />
 
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser />
       </SidebarFooter>
     </Sidebar>
   );
