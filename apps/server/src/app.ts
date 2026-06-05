@@ -1,8 +1,8 @@
 import createApp from "./lib/create-app.js";
 import { configureOpenAPI } from "./lib/configure-open-api.js";
 import { auth } from "./lib/auth.js";
-import { webhooksRouter } from "./routes/webhooks/index.js";
-import { conversationsRouter } from "./routes/conversations/index.js";
+// import { webhooksRouter } from "./routes/webhooks/index.js";
+// import { conversationsRouter } from "./routes/conversations/index.js";
 
 import type { Context } from "hono";
 import type { AppBinding } from "./lib/types.js";
@@ -20,11 +20,11 @@ app.get("/health", (c: Context<AppBinding>) => {
 // callbacks, session, etc.). Hand the raw request straight to its handler.
 app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
-// External webhook endpoints live at the root (unversioned), like /health.
-app.route("/webhooks", webhooksRouter);
+// // External webhook endpoints live at the root (unversioned), like /health.
+// app.route("/webhooks", webhooksRouter);
 
-// Versioned feature routes.
-app.route("/api/v1/conversations", conversationsRouter);
+// // Versioned feature routes.
+// app.route("/api/v1/conversations", conversationsRouter);
 
 export type AppType = typeof app;
 export default app;

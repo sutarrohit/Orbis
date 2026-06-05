@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
@@ -20,8 +20,16 @@ const inputClass = cn(
   "outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
 );
 
+// Only allow internal, single-leading-slash paths to prevent open redirects.
+function safeRedirect(target: string | null) {
+  if (target && target.startsWith("/") && !target.startsWith("//")) return target;
+  return "/";
+}
+
 export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = safeRedirect(searchParams.get("redirect"));
   const isSignUp = mode === "sign-up";
 
   const [name, setName] = useState("");
@@ -46,7 +54,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
       setError(error.message ?? "Something went wrong");
       return;
     }
-    router.push("/");
+    router.push(redirectTo);
   }
 
   async function onGoogle() {
@@ -54,10 +62,12 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     setGoogleLoading(true);
 
     // Redirects to Google, then back to the API callback, then to callbackURL.
-    // On success the browser navigates away, so we only reach the error path here.
+    // callbackURL must be absolute: a relative path resolves against the auth
+    // server's origin (:4000), sending us back to the API instead of the web app.
+    // window.location.origin (:3000) is in the server's trustedOrigins.
     const { error } = await authClient.signIn.social({
       provider: "google",
-      callbackURL: "/"
+      callbackURL: `${window.location.origin}${redirectTo}`
     });
 
     if (error) {
