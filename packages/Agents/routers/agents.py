@@ -22,6 +22,8 @@ from agents.schemas.research import ResearchRunRequest, ResearchRunResult
 from agents.schemas.search import CommunityRecord, SearchRunResult
 from agents.search import run_search
 from agents.schemas.search import SearchRunRequest
+from agents.sales import decide_reply as decide_sales_reply
+from agents.schemas.sales import SalesContext, SalesReply
 from agents.schemas.talk import LeadRecord, TalkContext, TalkDecision
 from agents.talk import decide_reply
 
@@ -64,6 +66,16 @@ def trigger_research(request: ResearchRunRequest) -> ResearchRunResult:
     return run_research(
         request.brand_id, niche=request.niche, use_llm=request.use_llm
     )
+
+
+@router.post("/agents/sales/decide", response_model=SalesReply)
+def trigger_sales(ctx: SalesContext, account_active: bool = True) -> SalesReply:
+    """Respond to one inbound DM from a known lead (the gateway's DM entry point).
+
+    In production the gateway imports ``decide_reply`` directly; this route gives
+    the dashboard / integration tests HTTP parity with the same function.
+    """
+    return decide_sales_reply(ctx, account_active=account_active)
 
 
 @router.get("/agents/leads", response_model=list[LeadRecord])

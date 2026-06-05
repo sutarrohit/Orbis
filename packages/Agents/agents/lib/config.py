@@ -99,6 +99,15 @@ class Settings:
         default_factory=lambda: _env_int("RESEARCH_AUTODM_MIN", 60)
     )
 
+    # ── Sales agent knobs ────────────────────────────────────────────────────
+    sales_use_llm: bool = field(
+        default_factory=lambda: _env_bool("SALES_USE_LLM", True)
+    )
+    # Max DM replies one account may send per brand per day (§11).
+    max_sales_dms_per_day: int = field(
+        default_factory=lambda: _env_int("MAX_SALES_DMS_PER_DAY", 15)
+    )
+
     # ── File store (stand-in for Postgres) ───────────────────────────────────
     data_dir: Path = field(
         default_factory=lambda: Path(
@@ -121,6 +130,10 @@ class Settings:
     @property
     def group_members_file(self) -> Path:
         return self.data_dir / "group_members.json"
+
+    @property
+    def brand_profiles_file(self) -> Path:
+        return self.data_dir / "brand_profiles.json"
 
     @property
     def token_usage_file(self) -> Path:

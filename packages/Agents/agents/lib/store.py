@@ -24,6 +24,7 @@ from pathlib import Path
 
 from agents.lib.config import settings
 from agents.schemas.research import ConversationRecord, GroupMemberRecord
+from agents.schemas.sales import BrandProfile
 from agents.schemas.search import CommunityRecord
 from agents.schemas.talk import LeadRecord
 
@@ -152,6 +153,61 @@ class LeadStore:
             self.path,
         )
         return True
+
+    def get(self, brand_id: str, user_id: str) -> LeadRecord | None:
+        """Return the lead for ``(brand_id, user_id)``, or None."""
+        target = self._key(brand_id, user_id)
+        for lead in self.all():
+            if self._key(lead.brand_id, lead.user_id) == target:
+                return lead
+        return None
+
+    def update(self, brand_id: str, user_id: str, **changes) -> LeadRecord | None:
+        """Mutate an existing lead in place (status/note/…); return the new record.
+
+        Unlike :meth:`upsert` (first-write-wins) this is the explicit mutate path
+        used by Sales (write the outcome back) and, later, the Leader's lead
+        actions. Returns None if the lead does not exist; unknown fields are
+        ignored so callers can pass a superset safely.
+        """
+        valid = {k: v for k, v in changes.items() if k in LeadRecord.model_fields}
+        with _LOCK:
+            rows = _read_json_list(self.path)
+            updated: LeadRecord | None = None
+            for row in rows:
+                if self._key(row.get("brand_id", ""), row.get("user_id", "")) == (
+                    brand_id,
+                    user_id,
+                ):
+                    row.update(valid)
+                    updated = LeadRecord.model_validate(row)
+                    break
+            if updated is not None:
+                _write_json_list(self.path, rows)
+        if updated is not None:
+            logger.info("lead update: (%s/%s) %s", brand_id, user_id, list(valid))
+        return updated
+
+
+class ProfileStore:
+    """Read-only repository for brand sales profiles (the §7.4 knowledge base).
+
+    The gateway / dashboard writes these; Sales reads the profile for a brand to
+    know its persona, product, pricing, and conversion action. Keyed by
+    ``brand_id``.
+    """
+
+    def __init__(self, path: Path | None = None):
+        self.path = path or settings.brand_profiles_file
+
+    def all(self) -> list[BrandProfile]:
+        return [BrandProfile.model_validate(r) for r in _read_json_list(self.path)]
+
+    def get(self, brand_id: str) -> BrandProfile | None:
+        for profile in self.all():
+            if profile.brand_id == brand_id:
+                return profile
+        return None
 
 
 class ConversationStore:

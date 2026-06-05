@@ -156,6 +156,11 @@ class LeadRecord(BaseModel):
     created_at: str = Field(
         default="", description="UTC ISO-8601 timestamp of first discovery."
     )
+    last_outreach_at: str = Field(
+        default="",
+        description="UTC ISO-8601 of the last DM we sent this lead (set by Sales; "
+        "the §9 follow-up sweep reads it).",
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────

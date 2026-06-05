@@ -118,6 +118,39 @@ def count_actions_today(
     return count
 
 
+def seen_dedup_key(brand_id: str, agent_type: str, action: str, dedup: str) -> bool:
+    """True if an ``action`` carrying ``detail.dedup == dedup`` was already logged.
+
+    Idempotency guard (Implentation.md §11): lets a handler refuse to act twice on
+    the same input (e.g. a gateway-retried DM). Best-effort over the activity feed.
+    """
+    if not dedup:
+        return False
+    path = settings.activity_file
+    if not path.exists():
+        return False
+    try:
+        with path.open("r", encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if (
+                    rec.get("brand_id") == brand_id
+                    and rec.get("agent") == agent_type
+                    and rec.get("action") == action
+                    and rec.get("detail", {}).get("dedup") == dedup
+                ):
+                    return True
+    except OSError as exc:
+        logger.debug("Could not read activity for dedup: %s", exc)
+    return False
+
+
 def record_activity(
     brand_id: str, agent_type: str, action: str, detail: dict | None = None
 ) -> None:

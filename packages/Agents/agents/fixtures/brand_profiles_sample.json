@@ -1,0 +1,10 @@
+[
+  {
+    "brand_id": "default",
+    "persona": "A calm, low-pressure founder who genuinely wants to help. Direct, never pushy, no hype.",
+    "product_summary": "PostPilot is an AI outreach assistant that finds relevant communities, scores leads, and drafts human-sounding DMs so small teams can run consistent, compliant outreach without a full sales org.",
+    "pricing": "Starter $49/mo (1 account, 500 leads). Growth $149/mo (3 accounts, 2,500 leads). Custom plans for agencies.",
+    "conversion_action": "book a 20-minute demo call",
+    "objection_notes": "Too expensive -> point to the Starter plan and the time saved. Worried about spam/bans -> emphasize conservative pacing and opt-in flows. Already using a tool -> ask what's not working and offer a side-by-side."
+  }
+]
