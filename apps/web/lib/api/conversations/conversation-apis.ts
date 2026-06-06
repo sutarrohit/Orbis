@@ -1,45 +1,51 @@
 import { request } from "@/utils/request";
+import type { PendingSendStatus } from "@/lib/api/enums";
 
-export interface ConversationListItem {
+/** A captured group message as returned by `GET /conversations`. */
+export interface Conversation {
   id: string;
-  customerId: string;
-  channel: string;
-  status: string;
-  assignedAgentId: string | null;
-  lastMessageAt: string | null;
-  createdAt: string;
-  customer: { id: string; displayName: string | null };
-  messages: { id: string; content: string | null; direction: string; createdAt: string }[];
-}
-
-export interface Paginated<T> {
-  data: T[];
-  pagination: { page: number; pageSize: number; total: number; totalPages: number };
-}
-
-export interface ThreadMessage {
-  id: string;
-  conversationId: string;
-  direction: string;
-  type: string;
-  content: string | null;
-  mediaUrl: string | null;
-  channelMessageId: string | null;
-  status: string;
+  brandId: string;
+  userId: string;
+  username: string;
+  groupChatId: string;
+  text: string;
+  ts: string;
   createdAt: string;
 }
 
-export function listConversations(): Promise<Paginated<ConversationListItem>> {
-  return request("/conversations?page=1&pageSize=50");
+export interface ListConversationsParams {
+  communityId?: string;
+  userId?: string;
 }
 
-export function getThread(id: string): Promise<ThreadMessage[]> {
-  return request(`/conversations/${id}/messages`);
+export interface SendMessageInput {
+  leadId: string;
+  accountId: string;
+  message: string;
 }
 
-export function sendReply(id: string, content: string): Promise<{ id: string; status: string }> {
-  return request(`/conversations/${id}/reply`, {
-    method: "POST",
-    body: JSON.stringify({ content })
-  });
+/** The queued DM returned by `POST /conversations/send`. */
+export interface PendingSend {
+  id: string;
+  brandId: string;
+  leadId: string;
+  accountId: string;
+  message: string;
+  stage: number;
+  status: PendingSendStatus;
+  dedupKey: string;
+  createdAt: string;
+  sentAt: string | null;
+}
+
+export function listConversations(params: ListConversationsParams = {}): Promise<Conversation[]> {
+  const qs = new URLSearchParams();
+  if (params.communityId) qs.set("community_id", params.communityId);
+  if (params.userId) qs.set("user_id", params.userId);
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  return request(`/conversations${suffix}`);
+}
+
+export function sendMessage(input: SendMessageInput): Promise<PendingSend> {
+  return request("/conversations/send", { method: "POST", body: JSON.stringify(input) });
 }
