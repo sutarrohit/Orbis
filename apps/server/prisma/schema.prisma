@@ -17,6 +17,7 @@ model User {
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
   sessions      Session[]
+  brands        Brand[]
 
   @@map("user")
 }
@@ -66,4 +67,313 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Agent layer — enums
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum Platform {
+  telegram
+  discord
+}
+
+enum SocialAccountStatus {
+  active
+  paused
+  restricted
+}
+
+enum LeadStatus {
+  new
+  prospect
+  nurturing
+  cold
+  lost
+  converted
+}
+
+enum LeadSource {
+  talk
+  inbound
+  outbound
+}
+
+enum InterestLevel {
+  hot
+  warm
+  cool
+  skip
+}
+
+enum CommunityStatus {
+  pending_join
+  joined
+  rejected
+}
+
+enum AgentType {
+  leader
+  search
+  research
+  talk
+  sales
+}
+
+enum AgentRunStatus {
+  idle
+  running
+  error
+}
+
+enum PendingSendStatus {
+  queued
+  sent
+  failed
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Agent layer — models
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// The tenant root. Every agent record is scoped to a Brand.
+model Brand {
+  id        String   @id @default(uuid())
+  ownerId   String
+  name      String
+  slug      String?  @unique
+  niche     String   @default("")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner          User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  profile        BrandProfile?
+  socialAccounts SocialAccount[]
+  leads          Lead[]
+  communities    Community[]
+  conversations  Conversation[]
+  groupMembers   GroupMember[]
+  pendingSends   PendingSend[]
+  agentStates    AgentState[]
+  activities     AgentActivity[]
+  tokenUsages    TokenUsage[]
+  learnings      Learning[]
+
+  @@index([ownerId])
+  @@map("brand")
+}
+
+/// The Sales knowledge base — everything the Sales LLM is allowed to speak from.
+model BrandProfile {
+  id               String   @id @default(uuid())
+  brandId          String   @unique
+  persona          String   @default("")
+  productSummary   String   @default("")
+  pricing          String   @default("")
+  conversionAction String   @default("")
+  objectionNotes   String   @default("")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@map("brand_profile")
+}
+
+/// A platform sending account the gateway operates (Telegram/Discord).
+model SocialAccount {
+  id         String              @id @default(uuid())
+  brandId    String
+  platform   Platform            @default(telegram)
+  externalId String
+  handle     String              @default("")
+  status     SocialAccountStatus @default(active)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  brand        Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  communities  Community[]
+  pendingSends PendingSend[]
+
+  @@unique([brandId, externalId])
+  @@index([brandId])
+  @@map("social_account")
+}
+
+/// The shared lead bus — Talk and Research write; Sales and Leader update.
+model Lead {
+  id                  String        @id @default(uuid())
+  brandId             String
+  userId              String
+  username            String        @default("")
+  score               Int           @default(0)
+  interestLevel       InterestLevel @default(cool)
+  status              LeadStatus    @default(new)
+  source              LeadSource    @default(talk)
+  note                String        @default("")
+  painPoints          String[]
+  recommendedApproach String        @default("")
+  sourceGroupChatId   String        @default("")
+  outreachStage       Int           @default(0)
+  lastOutreachAt      DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  brand        Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  pendingSends PendingSend[]
+
+  @@unique([brandId, userId])
+  @@index([brandId, status])
+  @@map("lead")
+}
+
+/// A discovered community — Search writes (pending_join); the gateway joins.
+model Community {
+  id                String          @id @default(uuid())
+  brandId           String
+  handle            String
+  name              String          @default("")
+  nicheRelevance    Int             @default(0)
+  status            CommunityStatus @default(pending_join)
+  source            String          @default("search")
+  foundVia          String          @default("llm")
+  sourceUrl         String          @default("")
+  groupChatId       String          @default("")
+  assignedAccountId String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  brand           Brand          @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  assignedAccount SocialAccount? @relation(fields: [assignedAccountId], references: [id], onDelete: SetNull)
+
+  @@unique([brandId, handle])
+  @@index([brandId, status])
+  @@index([assignedAccountId])
+  @@map("community")
+}
+
+/// Inbound bus — the gateway writes recent conversations; Research reads.
+model Conversation {
+  id          String   @id @default(uuid())
+  brandId     String
+  userId      String
+  username    String   @default("")
+  groupChatId String   @default("")
+  text        String
+  ts          DateTime
+  createdAt   DateTime @default(now())
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([brandId, userId, groupChatId, ts])
+  @@index([brandId])
+  @@map("conversation")
+}
+
+/// Outbound prospect pool — the gateway scrapes members; Research reads.
+model GroupMember {
+  id           String   @id @default(uuid())
+  brandId      String
+  userId       String
+  username     String   @default("")
+  groupChatId  String   @default("")
+  bio          String   @default("")
+  activityNote String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([brandId, userId, groupChatId])
+  @@index([brandId])
+  @@map("group_member")
+}
+
+/// Outbound DM queue — the Leader/outreach state machine writes; gateway delivers.
+model PendingSend {
+  id        String            @id @default(uuid())
+  brandId   String
+  leadId    String
+  accountId String
+  message   String
+  stage     Int               @default(0)
+  status    PendingSendStatus @default(queued)
+  dedupKey  String
+  createdAt DateTime          @default(now())
+  sentAt    DateTime?
+
+  brand   Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  lead    Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  account SocialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([brandId, dedupKey])
+  @@index([brandId, status])
+  @@index([leadId])
+  @@index([accountId])
+  @@map("pending_send")
+}
+
+/// Run status + the is_running double-run guard (one row per brand+agent).
+model AgentState {
+  id          String         @id @default(uuid())
+  brandId     String
+  agentType   AgentType
+  status      AgentRunStatus @default(idle)
+  currentTask String         @default("")
+  startedAt   DateTime?
+  updatedAt   DateTime       @updatedAt
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([brandId, agentType])
+  @@map("agent_state")
+}
+
+/// The activity feed — audit trail plus the rate-limit and dedup source.
+model AgentActivity {
+  id        String    @id @default(uuid())
+  brandId   String
+  agent     AgentType
+  action    String
+  detail    Json?
+  dedupKey  String?
+  accountId String?
+  ts        DateTime  @default(now())
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([brandId, agent, action, ts])
+  @@index([brandId, agent, action, dedupKey])
+  @@map("agent_activity")
+}
+
+/// Per-LLM-call token cost log.
+model TokenUsage {
+  id               String    @id @default(uuid())
+  brandId          String
+  agent            AgentType
+  model            String
+  promptTokens     Int       @default(0)
+  completionTokens Int       @default(0)
+  totalTokens      Int       @default(0)
+  ts               DateTime  @default(now())
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([brandId, ts])
+  @@map("token_usage")
+}
+
+/// Free-text strategy notes the Leader accumulates per brand.
+model Learning {
+  id        String   @id @default(uuid())
+  brandId   String
+  text      String
+  createdAt DateTime @default(now())
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([brandId])
+  @@map("learning")
 }
