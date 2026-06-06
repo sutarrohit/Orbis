@@ -65,6 +65,21 @@ class Settings:
         or None
     )
 
+    # ── OpenRouter fallback ──────────────────────────────────────────────────
+    # When set, every LLM call falls back to OpenRouter if the primary model
+    # errors (e.g. an OpenAI quota / 429). OpenRouter is OpenAI-compatible.
+    openrouter_api_key: str | None = field(
+        default_factory=lambda: os.environ.get("OPENROUTER_API_KEY") or None
+    )
+    openrouter_model: str = field(
+        default_factory=lambda: os.environ.get("OPENROUTER_MODEL", "openai/gpt-4o-mini")
+    )
+    openrouter_base_url: str = field(
+        default_factory=lambda: os.environ.get(
+            "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
+        )
+    )
+
     # ── Firecrawl ────────────────────────────────────────────────────────────
     firecrawl_api_key: str | None = field(
         default_factory=lambda: os.environ.get("FIRECRAWL_API_KEY") or None

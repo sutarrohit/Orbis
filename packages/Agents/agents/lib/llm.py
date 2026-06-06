@@ -8,7 +8,9 @@ the rest of the code only ever receives typed decisions, never free text.
 Provider is configured in :mod:`agents.config`:
   - default: ``AGENT_MODEL`` via ``init_chat_model`` (e.g. "openai:gpt-4o-mini")
   - override: set ``AGENT_LLM_BASE_URL`` (+ ``AGENT_LLM_API_KEY``) to point an
-    OpenAI-compatible client elsewhere (e.g. OpenRouter) without code changes.
+    OpenAI-compatible client elsewhere without code changes.
+  - fallback: set ``OPENROUTER_API_KEY`` and every call falls back to OpenRouter
+    if the primary model errors (e.g. an OpenAI quota / 429).
 
 """
 
@@ -27,6 +29,8 @@ T = TypeVar("T", bound=BaseModel)
 
 # Built lazily so importing this module never requires API keys / network.
 _model = None
+_fallback_model = None
+_fallback_built = False
 
 
 def _build_model():
@@ -63,10 +67,42 @@ def get_model():
     return _model
 
 
+def _build_fallback_model():
+    """Construct the OpenRouter fallback model, or None when not configured."""
+    if not settings.openrouter_api_key:
+        return None
+    from langchain_openai import ChatOpenAI
+
+    logger.info(
+        "Building OpenRouter fallback model=%s", settings.openrouter_model
+    )
+    return ChatOpenAI(
+        model=settings.openrouter_model,
+        base_url=settings.openrouter_base_url,
+        api_key=settings.openrouter_api_key,
+    )
+
+
+def get_fallback_model():
+    """Return the shared OpenRouter fallback model (None if no key), built once."""
+    global _fallback_model, _fallback_built
+    if not _fallback_built:
+        _fallback_model = _build_fallback_model()
+        _fallback_built = True
+    return _fallback_model
+
+
 def brain(schema: type[T]):
     """Return a runnable that outputs a validated instance of ``schema``.
+
+    If ``OPENROUTER_API_KEY`` is set, the runnable falls back to OpenRouter when
+    the primary model raises (e.g. an OpenAI quota / 429 error).
 
     Usage:
         result = brain(SearchResult).invoke(prompt)   # -> SearchResult instance
     """
-    return get_model().with_structured_output(schema)
+    primary = get_model().with_structured_output(schema)
+    fallback = get_fallback_model()
+    if fallback is not None:
+        return primary.with_fallbacks([fallback.with_structured_output(schema)])
+    return primary

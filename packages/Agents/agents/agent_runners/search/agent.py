@@ -36,7 +36,7 @@ from agents.lib.store import CommunityStore
 from agents.prompts.search import render_search_prompt
 from agents.schemas.search import (CommunityRecord, FoundCommunity,
                                    SearchResult, SearchRunResult)
-from agents.search.firecrawl_client import WebSearchResult, search
+from .firecrawl_client import WebSearchResult, search
 
 logger = logging.getLogger(__name__)
 
