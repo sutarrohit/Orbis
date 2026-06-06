@@ -159,6 +159,7 @@ model Brand {
   activities     AgentActivity[]
   tokenUsages    TokenUsage[]
   learnings      Learning[]
+  agentConfigs   AgentConfig[]
 
   @@index([ownerId])
   @@map("brand")
@@ -385,4 +386,29 @@ model Learning {
 
   @@index([brandId])
   @@map("learning")
+}
+
+/// Per-agent, per-brand behaviour configuration (one row per brand+agent).
+/// Drives each agent's voice/guardrails from the dashboard.
+model AgentConfig {
+  id            String    @id @default(uuid())
+  brandId       String
+  agentType     AgentType
+  enabled       Boolean   @default(true)
+  /// Short voice/tone tags, e.g. ["friendly", "concise"].
+  voiceTags     String[]
+  /// Free-text do/don't rules injected into the agent's prompt.
+  behaviorRules String[]
+  /// Topics the agent must never bring up.
+  bannedTopics  String[]
+  /// Optional extra system-prompt text appended for this agent.
+  systemPrompt  String    @default("")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([brandId, agentType])
+  @@index([brandId])
+  @@map("agent_config")
 }

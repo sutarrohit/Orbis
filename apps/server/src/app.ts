@@ -11,7 +11,9 @@ import { activityRouter } from "./routes/activity/index.js";
 import { learningsRouter } from "./routes/learnings/index.js";
 import { usageRouter } from "./routes/usage/index.js";
 import { agentStateRouter } from "./routes/agent-state/index.js";
+import { agentConfigRouter } from "./routes/agent-config/index.js";
 import { agentsRouter } from "./routes/agents/index.js";
+import { webhooksRouter } from "./routes/webhooks/index.js";
 
 import type { Context } from "hono";
 import type { AppBinding } from "./lib/types.js";
@@ -29,6 +31,9 @@ app.get("/health", (c: Context<AppBinding>) => {
 // callbacks, session, etc.). Hand the raw request straight to its handler.
 app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
+// External webhook endpoints live at the root (unversioned), like /health.
+app.route("/webhooks", webhooksRouter);
+
 // Versioned feature routes (Group A — DB-backed CRUD).
 const v1 = [
   brandRouter,
@@ -41,6 +46,7 @@ const v1 = [
   learningsRouter,
   usageRouter,
   agentStateRouter,
+  agentConfigRouter,
   agentsRouter
 ] as const;
 for (const router of v1) {
