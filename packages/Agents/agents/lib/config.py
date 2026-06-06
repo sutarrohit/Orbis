@@ -135,6 +135,12 @@ class Settings:
     database_url: str | None = field(
         default_factory=lambda: os.environ.get("DATABASE_URL") or None
     )
+    # Direct (non-pgBouncer) connection for tools that need prepared statements
+    # or run DDL — notably the LangGraph checkpointer. If unset, db.py derives a
+    # session-pooler URL from DATABASE_URL.
+    direct_url: str | None = field(
+        default_factory=lambda: os.environ.get("DIRECT_URL") or None
+    )
     # Slug/name of the brand the agents attribute work to when they pass the
     # legacy string ``brand_id`` (e.g. "default"). Resolved to a real Brand row
     # by ``agents.lib.db.resolve_brand_id`` (get-or-create).

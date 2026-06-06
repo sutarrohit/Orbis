@@ -68,6 +68,29 @@ def _clean_conninfo(url: str) -> str:
     )
 
 
+def direct_conninfo() -> str:
+    """A direct (non-pgBouncer) Postgres URL for tools that need prepared
+    statements or DDL — e.g. the LangGraph checkpointer.
+
+    Uses ``DIRECT_URL`` when set; otherwise derives a Supabase **session pooler**
+    URL from ``DATABASE_URL`` (swap the transaction pooler's port 6543 → 5432 and
+    drop ``pgbouncer``). The session pooler supports prepared statements; the
+    transaction pooler (6543) does not.
+    """
+    if settings.direct_url:
+        return _clean_conninfo(settings.direct_url)
+    if not settings.database_url:
+        raise RuntimeError("Neither DIRECT_URL nor DATABASE_URL is set.")
+    url = _clean_conninfo(settings.database_url)
+    parts = urlsplit(url)
+    if parts.port == 6543:
+        netloc = parts.netloc.replace(":6543", ":5432")
+        url = urlunsplit(
+            (parts.scheme, netloc, parts.path, parts.query, parts.fragment)
+        )
+    return url
+
+
 def pool() -> ConnectionPool:
     """Return the process-wide connection pool, creating it on first use."""
     global _pool
