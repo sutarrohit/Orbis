@@ -15,6 +15,7 @@ import type { Account } from "@/lib/api/accounts/accounts-apis";
 import { listAccountsQueryOptions } from "@/lib/api/accounts/accounts-queries";
 import type { CommunityStatus } from "@/lib/api/enums";
 import { AddCommunityDialog } from "@/components/communities/add-community-dialog";
+import { GroupMembersDialog } from "@/components/communities/group-members-dialog";
 import { EmptyState, ErrorState, TableLoadingRows } from "@/components/data/data-states";
 import { StatusBadge } from "@/components/data/status-badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -76,7 +77,8 @@ function CommunityRow({ community, accounts }: { community: Community; accounts:
         </Select>
       </TableCell>
       <TableCell>
-        <div className='flex justify-end'>
+        <div className='flex items-center justify-end gap-2'>
+          <GroupMembersDialog community={community} />
           <Select
             value={community.status}
             onValueChange={(value) => mutate({ id: community.id, input: { status: value as CommunityStatus } })}

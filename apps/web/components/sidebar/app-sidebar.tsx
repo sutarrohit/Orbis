@@ -29,6 +29,7 @@ import {
   Lightbulb,
   MessagesSquare,
   Settings,
+  Gauge,
   Rocket,
   Download,
   FolderTree
@@ -76,6 +77,11 @@ const data = {
       title: "Conversations",
       url: "/conversations",
       icon: MessagesSquare
+    },
+    {
+      title: "Usage",
+      url: "/usage",
+      icon: Gauge
     },
     {
       title: "Settings",
