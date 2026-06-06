@@ -24,7 +24,13 @@ const EnvSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(16), // random secret used to sign sessions/tokens
   BETTER_AUTH_URL: z.url().default("http://localhost:4000"), // base URL the auth server runs on
   GOOGLE_CLIENT_ID: z.string().min(1),
-  GOOGLE_CLIENT_SECRET: z.string().min(1)
+  GOOGLE_CLIENT_SECRET: z.string().min(1),
+
+  // Python agent service. AGENTS_JWT_SECRET is the shared HS256 secret used to
+  // sign the service token Hono sends; the same value must be set on the Python
+  // side so it can verify the token.
+  AGENTS_SERVICE_URL: z.url().default("http://localhost:8000"),
+  AGENTS_JWT_SECRET: z.string().min(1)
 });
 
 export type env = z.infer<typeof EnvSchema>;

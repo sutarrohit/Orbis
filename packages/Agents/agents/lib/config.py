@@ -175,6 +175,13 @@ class Settings:
         default_factory=lambda: os.environ.get("AGENT_DEFAULT_BRAND_SLUG", "default")
     )
 
+    # ── Service auth (JWT from the Hono API) ─────────────────────────────────
+    # Shared HS256 secret. Hono signs the service token with this; we verify with
+    # the same value. Must match AGENTS_JWT_SECRET on the Hono side.
+    agents_jwt_secret: str | None = field(
+        default_factory=lambda: os.environ.get("AGENTS_JWT_SECRET") or None
+    )
+
     @property
     def fixtures_dir(self) -> Path:
         """Bundled Firecrawl fixtures (offline Search mode). Not a data store."""

@@ -1,13 +1,14 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from scalar_fastapi import get_scalar_api_reference
 
+from agents.lib.auth import require_service_auth
 from agents.lib.config import settings
 from agents.scheduler import shutdown_scheduler, start_scheduler
 from errors.errors import PredictionAPIError
@@ -32,10 +33,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Include Routers
-app.include_router(agents.router, prefix="/api", tags=["Agents"])
-app.include_router(accounts.router, prefix="/api", tags=["Accounts"])
-app.include_router(scheduler_router.router, prefix="/api", tags=["Scheduler"])
+# Include Routers — all guarded by the shared-secret service JWT from Hono.
+_auth = [Depends(require_service_auth)]
+app.include_router(agents.router, prefix="/api", tags=["Agents"], dependencies=_auth)
+app.include_router(accounts.router, prefix="/api", tags=["Accounts"], dependencies=_auth)
+app.include_router(scheduler_router.router, prefix="/api", tags=["Scheduler"], dependencies=_auth)
 
 app.add_middleware(
     CORSMiddleware,
