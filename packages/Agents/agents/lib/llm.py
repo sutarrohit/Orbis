@@ -10,15 +10,12 @@ Provider is configured in :mod:`agents.config`:
   - override: set ``AGENT_LLM_BASE_URL`` (+ ``AGENT_LLM_API_KEY``) to point an
     OpenAI-compatible client elsewhere (e.g. OpenRouter) without code changes.
 
-Every call's token usage is logged (Implentation.md §5.1 / §12). With no DB yet
-we append it to ``data/token_usage.jsonl``.
 """
 
 from __future__ import annotations
 
-import json
 import logging
-from typing import Any, TypeVar
+from typing import TypeVar
 
 from pydantic import BaseModel
 
@@ -73,27 +70,3 @@ def brain(schema: type[T]):
         result = brain(SearchResult).invoke(prompt)   # -> SearchResult instance
     """
     return get_model().with_structured_output(schema)
-
-
-def log_token_usage(response: Any, *, agent: str, call: str) -> None:
-    """Append a token-usage record for one LLM call (best-effort, never raises).
-
-    Pass the *raw* model response (an ``AIMessage``) when you have it. When using
-    ``with_structured_output`` the usage is often not surfaced on the parsed
-    object, so this is best-effort and simply records what it can find.
-    """
-    usage = None
-    for attr in ("usage_metadata", "response_metadata"):
-        meta = getattr(response, attr, None)
-        if isinstance(meta, dict) and meta:
-            usage = meta.get("usage", meta) if attr == "response_metadata" else meta
-            if usage:
-                break
-
-    record = {"agent": agent, "call": call, "model": settings.model, "usage": usage}
-    try:
-        settings.token_usage_file.parent.mkdir(parents=True, exist_ok=True)
-        with settings.token_usage_file.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(record, ensure_ascii=False) + "\n")
-    except OSError as exc:  # logging must never break a run
-        logger.debug("Could not write token usage: %s", exc)

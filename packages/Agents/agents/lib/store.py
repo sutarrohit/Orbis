@@ -1,28 +1,24 @@
 """
-agents/store.py
-───────────────
-File-based stand-in for Postgres ("the noticeboard").
+agents/lib/store.py — repositories over Postgres (the bus / noticeboard)
+────────────────────────────────────────────────────────────────────────
+Agents coordinate only through Postgres (Implentation.md §1, §5.3). These
+repository classes are the only way agent code touches state; they wrap
+hand-written SQL (via :mod:`agents.lib.db`) so the agents stay database-agnostic.
 
-Implentation.md says agents coordinate *only* through the database and that all
-writes are idempotent via natural unique keys. Until Postgres exists we honour
-the same contract against a local JSON file:
+The **schema is owned and migrated by Prisma** in ``apps/server`` — here we only
+read and write rows. Remember the Prisma-isms when inserting (see ``db.py``):
+``id`` and ``updatedAt`` are client-side in Prisma, so every INSERT supplies
+``db.new_id()`` and ``now()`` itself; ``createdAt`` has a DB default.
 
-  - one JSON file per collection (``data/communities.json``)
-  - upserts keyed by a natural unique key — ``(brand_id, handle)`` for communities
-  - re-running a worker never creates duplicates
-
-The public surface (``CommunityStore``) is intentionally repository-shaped so it
-can be replaced by real DB repository functions later without changing any agent.
+All writes are idempotent via the natural unique keys enforced by the schema:
+``(brandId, handle)`` on communities and ``(brandId, userId)`` on leads.
 """
 
 from __future__ import annotations
 
-import json
 import logging
-import threading
-from pathlib import Path
 
-from agents.lib.config import settings
+from agents.lib import db
 from agents.schemas.research import ConversationRecord, GroupMemberRecord
 from agents.schemas.sales import BrandProfile
 from agents.schemas.search import CommunityRecord
@@ -30,203 +26,315 @@ from agents.schemas.talk import LeadRecord
 
 logger = logging.getLogger(__name__)
 
-# A process-wide lock keeps concurrent writes (e.g. manual run + scheduler)
-# from clobbering the file. Postgres will handle this for real later.
-_LOCK = threading.Lock()
 
-
-def _read_json_list(path: Path) -> list[dict]:
-    if not path.exists():
-        return []
-    try:
-        with path.open("r", encoding="utf-8") as fh:
-            data = json.load(fh)
-        return data if isinstance(data, list) else []
-    except (json.JSONDecodeError, OSError) as exc:
-        logger.warning("Could not read %s (%s); treating as empty.", path, exc)
-        return []
-
-
-def _write_json_list(path: Path, rows: list[dict]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    with tmp.open("w", encoding="utf-8") as fh:
-        json.dump(rows, fh, indent=2, ensure_ascii=False)
-    tmp.replace(path)  # atomic on the same filesystem
+def _iso(value) -> str:
+    """A timestamp column → ISO-8601 string (``""`` when NULL)."""
+    return value.isoformat() if value else ""
 
 
 class CommunityStore:
-    """Repository for discovered communities (``status=pending_join`` on insert)."""
+    """Repository for discovered communities (``community`` table).
 
-    def __init__(self, path: Path | None = None):
-        self.path = path or settings.communities_file
+    Search **discovers but does not join** — every row is written with
+    ``status='pending_join'``; the gateway joins and scrapes members later. The
+    natural key ``(brandId, handle)`` is enforced by a unique constraint, so the
+    upsert stays idempotent (first discovery wins).
+    """
+
+    _COLUMNS = (
+        '"brandId", handle, name, "nicheRelevance", status, source, '
+        '"foundVia", "sourceUrl", "createdAt"'
+    )
 
     @staticmethod
-    def _key(brand_id: str, handle: str) -> tuple[str, str]:
-        return (brand_id, handle)
+    def _row_to_record(r: tuple) -> CommunityRecord:
+        return CommunityRecord(
+            brand_id=r[0],
+            handle=r[1],
+            name=r[2],
+            niche_relevance=r[3],
+            status=r[4],
+            source=r[5],
+            found_via=r[6],
+            source_url=r[7],
+            created_at=_iso(r[8]),
+        )
 
     def all(self) -> list[CommunityRecord]:
-        return [CommunityRecord.model_validate(r) for r in _read_json_list(self.path)]
+        with db.cursor() as cur:
+            cur.execute(f"SELECT {self._COLUMNS} FROM community")
+            return [self._row_to_record(r) for r in cur.fetchall()]
 
     def for_brand(self, brand_id: str) -> list[CommunityRecord]:
-        return [c for c in self.all() if c.brand_id == brand_id]
+        bid = db.resolve_brand_id(brand_id)
+        with db.cursor() as cur:
+            cur.execute(
+                f'SELECT {self._COLUMNS} FROM community WHERE "brandId" = %s',
+                (bid,),
+            )
+            return [self._row_to_record(r) for r in cur.fetchall()]
 
     def upsert_many(self, records: list[CommunityRecord]) -> tuple[int, int]:
-        """Insert any records whose ``(brand_id, handle)`` is not already stored.
+        """Insert any records whose ``(brandId, handle)`` is not already stored.
 
-        Idempotent: existing keys are left untouched (first discovery wins, so we
-        keep the original ``created_at``). Returns ``(inserted, duplicates)``.
+        Idempotent via ``ON CONFLICT DO NOTHING``. Returns ``(inserted, duplicates)``.
         """
-        with _LOCK:
-            existing_rows = _read_json_list(self.path)
-            existing_keys = {
-                self._key(r.get("brand_id", ""), r.get("handle", ""))
-                for r in existing_rows
-            }
+        if not records:
+            return (0, 0)
 
-            inserted = 0
-            duplicates = 0
+        bid = db.resolve_brand_id(records[0].brand_id)
+        inserted = 0
+        duplicates = 0
+        with db.cursor() as cur:
             for rec in records:
-                key = self._key(rec.brand_id, rec.handle)
-                if key in existing_keys:
+                cur.execute(
+                    'INSERT INTO community '
+                    '(id, "brandId", handle, name, "nicheRelevance", status, '
+                    'source, "foundVia", "sourceUrl", "updatedAt") '
+                    'VALUES (%s, %s, %s, %s, %s, %s::"CommunityStatus", %s, %s, %s, now()) '
+                    'ON CONFLICT ("brandId", handle) DO NOTHING',
+                    (
+                        db.new_id(),
+                        bid,
+                        rec.handle,
+                        rec.name,
+                        rec.niche_relevance,
+                        rec.status,
+                        rec.source,
+                        rec.found_via,
+                        rec.source_url,
+                    ),
+                )
+                if cur.rowcount == 1:
+                    inserted += 1
+                else:
                     duplicates += 1
-                    continue
-                existing_rows.append(rec.model_dump())
-                existing_keys.add(key)
-                inserted += 1
-
-            if inserted:
-                _write_json_list(self.path, existing_rows)
 
         logger.info(
-            "communities upsert: +%d new, %d duplicates (file=%s)",
+            "communities upsert: +%d new, %d duplicates (brand=%s)",
             inserted,
             duplicates,
-            self.path,
+            bid,
         )
         return inserted, duplicates
 
 
 class LeadStore:
-    """Repository for flagged leads (dedup key ``(brand_id, user_id)``).
+    """Repository for flagged leads (``lead`` table, key ``(brandId, userId)``).
 
-    Shared by Talk (flags interested group members) and the future Research
-    agent (scores inbound/outbound prospects). First flag wins — a re-flag of an
-    existing lead is a no-op, so the original ``created_at`` and status are kept.
+    Shared by Talk (flags interested members), Research (scores inbound/outbound
+    prospects) and Sales (writes outcomes back). :meth:`upsert` is first-write-wins
+    (a re-flag is a no-op); :meth:`update` is the explicit mutate path.
     """
 
-    def __init__(self, path: Path | None = None):
-        self.path = path or settings.leads_file
+    _COLUMNS = (
+        '"brandId", "userId", username, score, "interestLevel", status, source, '
+        'note, "painPoints", "recommendedApproach", "sourceGroupChatId", '
+        '"createdAt", "lastOutreachAt"'
+    )
+
+    # change-field → (column, enum cast or None) for the dynamic UPDATE.
+    _UPDATABLE = {
+        "username": ("username", None),
+        "score": ("score", None),
+        "interest_level": ('"interestLevel"', "InterestLevel"),
+        "status": ("status", "LeadStatus"),
+        "source": ("source", "LeadSource"),
+        "note": ("note", None),
+        "pain_points": ('"painPoints"', None),
+        "recommended_approach": ('"recommendedApproach"', None),
+        "source_group_chat_id": ('"sourceGroupChatId"', None),
+        "last_outreach_at": ('"lastOutreachAt"', None),
+    }
 
     @staticmethod
-    def _key(brand_id: str, user_id: str) -> tuple[str, str]:
-        return (brand_id, user_id)
+    def _row_to_record(r: tuple) -> LeadRecord:
+        return LeadRecord(
+            brand_id=r[0],
+            user_id=r[1],
+            username=r[2],
+            score=r[3],
+            interest_level=r[4],
+            status=r[5],
+            source=r[6],
+            note=r[7],
+            pain_points=r[8] or [],
+            recommended_approach=r[9],
+            source_group_chat_id=r[10],
+            created_at=_iso(r[11]),
+            last_outreach_at=_iso(r[12]),
+        )
 
     def all(self) -> list[LeadRecord]:
-        return [LeadRecord.model_validate(r) for r in _read_json_list(self.path)]
+        with db.cursor() as cur:
+            cur.execute(f"SELECT {self._COLUMNS} FROM lead")
+            return [self._row_to_record(r) for r in cur.fetchall()]
 
     def for_brand(self, brand_id: str) -> list[LeadRecord]:
-        return [lead for lead in self.all() if lead.brand_id == brand_id]
+        bid = db.resolve_brand_id(brand_id)
+        with db.cursor() as cur:
+            cur.execute(
+                f'SELECT {self._COLUMNS} FROM lead WHERE "brandId" = %s', (bid,)
+            )
+            return [self._row_to_record(r) for r in cur.fetchall()]
 
     def user_ids(self, brand_id: str) -> set[str]:
         """Set of ``user_id``s already a lead for ``brand_id`` (pre-filter helper)."""
-        return {lead.user_id for lead in self.for_brand(brand_id)}
+        bid = db.resolve_brand_id(brand_id)
+        with db.cursor() as cur:
+            cur.execute('SELECT "userId" FROM lead WHERE "brandId" = %s', (bid,))
+            return {r[0] for r in cur.fetchall()}
 
     def upsert(self, record: LeadRecord) -> bool:
-        """Insert ``record`` if its ``(brand_id, user_id)`` is not already stored.
-
-        Returns True if a new lead was written, False if it already existed.
-        """
-        with _LOCK:
-            rows = _read_json_list(self.path)
-            keys = {
-                self._key(r.get("brand_id", ""), r.get("user_id", "")) for r in rows
-            }
-            if self._key(record.brand_id, record.user_id) in keys:
-                return False
-            rows.append(record.model_dump())
-            _write_json_list(self.path, rows)
-        logger.info(
-            "lead upsert: +1 (%s/%s) file=%s",
-            record.brand_id,
-            record.user_id,
-            self.path,
-        )
-        return True
+        """Insert ``record`` if ``(brandId, userId)`` is new. True if written."""
+        bid = db.resolve_brand_id(record.brand_id)
+        with db.cursor() as cur:
+            cur.execute(
+                'INSERT INTO lead '
+                '(id, "brandId", "userId", username, score, "interestLevel", '
+                'status, source, note, "painPoints", "recommendedApproach", '
+                '"sourceGroupChatId", "lastOutreachAt", "updatedAt") '
+                'VALUES (%s, %s, %s, %s, %s, %s::"InterestLevel", %s::"LeadStatus", '
+                '%s::"LeadSource", %s, %s, %s, %s, %s, now()) '
+                'ON CONFLICT ("brandId", "userId") DO NOTHING',
+                (
+                    db.new_id(),
+                    bid,
+                    record.user_id,
+                    record.username,
+                    record.score,
+                    record.interest_level,
+                    record.status,
+                    record.source,
+                    record.note,
+                    record.pain_points,
+                    record.recommended_approach,
+                    record.source_group_chat_id,
+                    record.last_outreach_at or None,
+                ),
+            )
+            written = cur.rowcount == 1
+        if written:
+            logger.info("lead upsert: +1 (%s/%s)", bid, record.user_id)
+        return written
 
     def get(self, brand_id: str, user_id: str) -> LeadRecord | None:
-        """Return the lead for ``(brand_id, user_id)``, or None."""
-        target = self._key(brand_id, user_id)
-        for lead in self.all():
-            if self._key(lead.brand_id, lead.user_id) == target:
-                return lead
-        return None
+        bid = db.resolve_brand_id(brand_id)
+        with db.cursor() as cur:
+            cur.execute(
+                f'SELECT {self._COLUMNS} FROM lead '
+                'WHERE "brandId" = %s AND "userId" = %s',
+                (bid, user_id),
+            )
+            row = cur.fetchone()
+        return self._row_to_record(row) if row else None
 
     def update(self, brand_id: str, user_id: str, **changes) -> LeadRecord | None:
-        """Mutate an existing lead in place (status/note/…); return the new record.
+        """Mutate an existing lead (status/note/…); return the new record or None.
 
-        Unlike :meth:`upsert` (first-write-wins) this is the explicit mutate path
-        used by Sales (write the outcome back) and, later, the Leader's lead
-        actions. Returns None if the lead does not exist; unknown fields are
-        ignored so callers can pass a superset safely.
+        The explicit mutate path used by Sales and the Leader's lead actions.
+        Unknown fields are ignored so callers can pass a superset safely.
         """
-        valid = {k: v for k, v in changes.items() if k in LeadRecord.model_fields}
-        with _LOCK:
-            rows = _read_json_list(self.path)
-            updated: LeadRecord | None = None
-            for row in rows:
-                if self._key(row.get("brand_id", ""), row.get("user_id", "")) == (
-                    brand_id,
-                    user_id,
-                ):
-                    row.update(valid)
-                    updated = LeadRecord.model_validate(row)
-                    break
-            if updated is not None:
-                _write_json_list(self.path, rows)
-        if updated is not None:
-            logger.info("lead update: (%s/%s) %s", brand_id, user_id, list(valid))
-        return updated
+        sets: list[str] = []
+        values: list = []
+        for field, (column, cast) in self._UPDATABLE.items():
+            if field not in changes:
+                continue
+            value = changes[field]
+            if field == "last_outreach_at":
+                value = value or None
+            sets.append(f"{column} = %s::\"{cast}\"" if cast else f"{column} = %s")
+            values.append(value)
+
+        if not sets:
+            return self.get(brand_id, user_id)
+
+        sets.append('"updatedAt" = now()')
+        bid = db.resolve_brand_id(brand_id)
+        with db.cursor() as cur:
+            cur.execute(
+                f'UPDATE lead SET {", ".join(sets)} '
+                'WHERE "brandId" = %s AND "userId" = %s '
+                f"RETURNING {self._COLUMNS}",
+                (*values, bid, user_id),
+            )
+            row = cur.fetchone()
+        if row is not None:
+            logger.info("lead update: (%s/%s) %s", bid, user_id, list(changes))
+        return self._row_to_record(row) if row else None
 
 
 class ProfileStore:
-    """Read-only repository for brand sales profiles (the §7.4 knowledge base).
+    """Read-only repository for brand sales profiles (``brand_profile`` table).
 
     The gateway / dashboard writes these; Sales reads the profile for a brand to
-    know its persona, product, pricing, and conversion action. Keyed by
-    ``brand_id``.
+    know its persona, product, pricing, and conversion action.
     """
 
-    def __init__(self, path: Path | None = None):
-        self.path = path or settings.brand_profiles_file
+    _COLUMNS = (
+        '"brandId", persona, "productSummary", pricing, "conversionAction", '
+        '"objectionNotes"'
+    )
+
+    @staticmethod
+    def _row_to_record(r: tuple) -> BrandProfile:
+        return BrandProfile(
+            brand_id=r[0],
+            persona=r[1],
+            product_summary=r[2],
+            pricing=r[3],
+            conversion_action=r[4],
+            objection_notes=r[5],
+        )
 
     def all(self) -> list[BrandProfile]:
-        return [BrandProfile.model_validate(r) for r in _read_json_list(self.path)]
+        with db.cursor() as cur:
+            cur.execute(f"SELECT {self._COLUMNS} FROM brand_profile")
+            return [self._row_to_record(r) for r in cur.fetchall()]
 
     def get(self, brand_id: str) -> BrandProfile | None:
-        for profile in self.all():
-            if profile.brand_id == brand_id:
-                return profile
-        return None
+        bid = db.resolve_brand_id(brand_id)
+        with db.cursor() as cur:
+            cur.execute(
+                f'SELECT {self._COLUMNS} FROM brand_profile WHERE "brandId" = %s',
+                (bid,),
+            )
+            row = cur.fetchone()
+        return self._row_to_record(row) if row else None
 
 
 class ConversationStore:
-    """Read-only repository for recent conversations (the gateway → Research bus).
+    """Read-only repository for recent conversations (gateway → Research bus).
 
-    Research only reads these; the gateway writes them. No upsert is exposed here
-    — when Postgres lands this becomes a query against the ``conversations`` table.
+    Research only reads these; the gateway writes them.
     """
 
-    def __init__(self, path: Path | None = None):
-        self.path = path or settings.conversations_file
+    _COLUMNS = '"brandId", "userId", username, "groupChatId", text, ts'
+
+    @staticmethod
+    def _row_to_record(r: tuple) -> ConversationRecord:
+        return ConversationRecord(
+            brand_id=r[0],
+            user_id=r[1],
+            username=r[2],
+            group_chat_id=r[3],
+            text=r[4],
+            ts=_iso(r[5]),
+        )
 
     def all(self) -> list[ConversationRecord]:
-        return [
-            ConversationRecord.model_validate(r) for r in _read_json_list(self.path)
-        ]
+        with db.cursor() as cur:
+            cur.execute(f"SELECT {self._COLUMNS} FROM conversation")
+            return [self._row_to_record(r) for r in cur.fetchall()]
 
     def for_brand(self, brand_id: str) -> list[ConversationRecord]:
-        return [c for c in self.all() if c.brand_id == brand_id]
+        bid = db.resolve_brand_id(brand_id)
+        with db.cursor() as cur:
+            cur.execute(
+                f'SELECT {self._COLUMNS} FROM conversation WHERE "brandId" = %s',
+                (bid,),
+            )
+            return [self._row_to_record(r) for r in cur.fetchall()]
 
 
 class GroupMemberStore:
@@ -236,13 +344,29 @@ class GroupMemberStore:
     not already leads; the gateway writes them after joining and scraping a group.
     """
 
-    def __init__(self, path: Path | None = None):
-        self.path = path or settings.group_members_file
+    _COLUMNS = '"brandId", "userId", username, "groupChatId", bio, "activityNote"'
+
+    @staticmethod
+    def _row_to_record(r: tuple) -> GroupMemberRecord:
+        return GroupMemberRecord(
+            brand_id=r[0],
+            user_id=r[1],
+            username=r[2],
+            group_chat_id=r[3],
+            bio=r[4],
+            activity_note=r[5],
+        )
 
     def all(self) -> list[GroupMemberRecord]:
-        return [
-            GroupMemberRecord.model_validate(r) for r in _read_json_list(self.path)
-        ]
+        with db.cursor() as cur:
+            cur.execute(f"SELECT {self._COLUMNS} FROM group_member")
+            return [self._row_to_record(r) for r in cur.fetchall()]
 
     def for_brand(self, brand_id: str) -> list[GroupMemberRecord]:
-        return [m for m in self.all() if m.brand_id == brand_id]
+        bid = db.resolve_brand_id(brand_id)
+        with db.cursor() as cur:
+            cur.execute(
+                f'SELECT {self._COLUMNS} FROM group_member WHERE "brandId" = %s',
+                (bid,),
+            )
+            return [self._row_to_record(r) for r in cur.fetchall()]

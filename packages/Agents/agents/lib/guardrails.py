@@ -2,169 +2,152 @@
 agents/guardrails.py — deterministic only
 ──────────────────────────────────────────
 Never trust the LLM to self-limit (Implentation.md §11). The rules that protect
-the system are plain code. For the Search agent we need the foundational ones:
+the system are plain code, backed by Postgres:
 
-  - ``is_running`` / ``set_state`` — the double-run guard (Implentation.md §6 §11).
-    "Never spawn a worker already running." Clicking Run while the scheduler also
-    triggers a worker must be a no-op for the second caller.
-  - ``record_activity`` — append a meaningful action to the activity feed (§12).
+  - ``is_running`` / ``set_state`` — the double-run guard (§6, §11), backed by
+    the ``agent_state`` table (one row per ``(brandId, agentType)``).
+  - ``count_actions_today`` / ``seen_dedup_key`` — per-day rate limits and the
+    idempotency guard, answered by indexed queries over ``agent_activity``.
+  - ``record_activity`` — append a meaningful action to the ``agent_activity``
+    feed (§12); ``account_id`` and ``dedup`` are promoted to indexed columns so
+    the two guards above are real lookups, not JSON scans.
 
-With no Postgres yet these are backed by small JSON/JSONL files under ``data/``.
-The state file plays the role of the future ``agent_state`` table.
+The schema is owned by Prisma (``apps/server``); we only read/write rows.
 """
 
 from __future__ import annotations
 
-import json
 import logging
-import threading
-from datetime import datetime, timezone
-from pathlib import Path
 
-from agents.lib.config import settings
+from psycopg.types.json import Json
+
+from agents.lib import db
 
 logger = logging.getLogger(__name__)
-
-_LOCK = threading.Lock()
-
-
-def _state_file() -> Path:
-    return settings.data_dir / "agent_state.json"
-
-
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
-def _read_state() -> dict:
-    path = _state_file()
-    if not path.exists():
-        return {}
-    try:
-        return json.loads(path.read_text(encoding="utf-8")) or {}
-    except (json.JSONDecodeError, OSError):
-        return {}
-
-
-def _state_key(brand_id: str, agent_type: str) -> str:
-    return f"{brand_id}:{agent_type}"
 
 
 def is_running(brand_id: str, agent_type: str) -> bool:
     """True if ``agent_type`` for ``brand_id`` is currently marked running."""
-    with _LOCK:
-        entry = _read_state().get(_state_key(brand_id, agent_type))
-    return bool(entry and entry.get("status") == "running")
+    bid = db.resolve_brand_id(brand_id)
+    with db.cursor() as cur:
+        cur.execute(
+            'SELECT status FROM agent_state '
+            'WHERE "brandId" = %s AND "agentType" = %s::"AgentType"',
+            (bid, agent_type),
+        )
+        row = cur.fetchone()
+    return bool(row and row[0] == "running")
 
 
 def set_state(
     brand_id: str, agent_type: str, status: str, current_task: str = ""
 ) -> None:
-    """Update ``agent_state`` for the dashboard and the ``is_running`` guard."""
-    with _LOCK:
-        state = _read_state()
-        state[_state_key(brand_id, agent_type)] = {
-            "brand_id": brand_id,
-            "agent_type": agent_type,
-            "status": status,
-            "current_task": current_task,
-            "updated_at": _now(),
-        }
-        path = _state_file()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            json.dumps(state, indent=2, ensure_ascii=False), encoding="utf-8"
+    """Upsert ``agent_state`` for the dashboard and the ``is_running`` guard.
+
+    ``startedAt`` is stamped whenever the agent transitions to ``running`` and
+    otherwise preserved.
+    """
+    bid = db.resolve_brand_id(brand_id)
+    set_started = status == "running"
+    with db.cursor() as cur:
+        cur.execute(
+            'INSERT INTO agent_state '
+            '(id, "brandId", "agentType", status, "currentTask", "startedAt", "updatedAt") '
+            'VALUES (%s, %s, %s::"AgentType", %s::"AgentRunStatus", %s, '
+            "CASE WHEN %s THEN now() ELSE NULL END, now()) "
+            'ON CONFLICT ("brandId", "agentType") DO UPDATE SET '
+            "status = EXCLUDED.status, "
+            '"currentTask" = EXCLUDED."currentTask", '
+            '"startedAt" = CASE WHEN %s THEN now() ELSE agent_state."startedAt" END, '
+            '"updatedAt" = now()',
+            (
+                db.new_id(),
+                bid,
+                agent_type,
+                status,
+                current_task,
+                set_started,
+                set_started,
+            ),
         )
 
 
 def count_actions_today(
     brand_id: str, agent_type: str, action: str, *, account_id: str | None = None
 ) -> int:
-    """Count activity-feed entries for ``action`` logged today (UTC).
+    """Count ``agent_activity`` rows for ``action`` logged today (UTC).
 
-    Backs deterministic per-day rate limits (Implentation.md §11) until Postgres
-    exists. Optionally scope to a single ``account_id`` (matched in ``detail``).
-    Best-effort: a missing/corrupt feed counts as zero.
+    Backs deterministic per-day rate limits (Implentation.md §11). Optionally
+    scope to a single ``account_id``. Best-effort: errors count as zero.
     """
-    today = datetime.now(timezone.utc).date().isoformat()
-    path = settings.activity_file
-    if not path.exists():
-        return 0
-    count = 0
+    bid = db.resolve_brand_id(brand_id)
+    sql = (
+        "SELECT count(*) FROM agent_activity "
+        'WHERE "brandId" = %s AND agent = %s::"AgentType" AND action = %s '
+        "AND ts >= date_trunc('day', now())"
+    )
+    params: list = [bid, agent_type, action]
+    if account_id is not None:
+        sql += ' AND "accountId" = %s'
+        params.append(account_id)
     try:
-        with path.open("r", encoding="utf-8") as fh:
-            for line in fh:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    rec = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if (
-                    rec.get("brand_id") == brand_id
-                    and rec.get("agent") == agent_type
-                    and rec.get("action") == action
-                    and str(rec.get("ts", "")).startswith(today)
-                ):
-                    if account_id is not None and (
-                        rec.get("detail", {}).get("account_id") != account_id
-                    ):
-                        continue
-                    count += 1
-    except OSError as exc:
-        logger.debug("Could not read activity for count: %s", exc)
+        with db.cursor() as cur:
+            cur.execute(sql, params)
+            row = cur.fetchone()
+        return int(row[0]) if row else 0
+    except Exception as exc:  # a guard must never break a run
+        logger.debug("count_actions_today failed: %s", exc)
         return 0
-    return count
 
 
 def seen_dedup_key(brand_id: str, agent_type: str, action: str, dedup: str) -> bool:
-    """True if an ``action`` carrying ``detail.dedup == dedup`` was already logged.
+    """True if an ``action`` carrying ``dedupKey == dedup`` was already logged.
 
-    Idempotency guard (Implentation.md §11): lets a handler refuse to act twice on
-    the same input (e.g. a gateway-retried DM). Best-effort over the activity feed.
+    Idempotency guard (Implentation.md §11): lets a handler refuse to act twice
+    on the same input (e.g. a gateway-retried DM). Best-effort.
     """
     if not dedup:
         return False
-    path = settings.activity_file
-    if not path.exists():
-        return False
+    bid = db.resolve_brand_id(brand_id)
     try:
-        with path.open("r", encoding="utf-8") as fh:
-            for line in fh:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    rec = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if (
-                    rec.get("brand_id") == brand_id
-                    and rec.get("agent") == agent_type
-                    and rec.get("action") == action
-                    and rec.get("detail", {}).get("dedup") == dedup
-                ):
-                    return True
-    except OSError as exc:
-        logger.debug("Could not read activity for dedup: %s", exc)
-    return False
+        with db.cursor() as cur:
+            cur.execute(
+                "SELECT 1 FROM agent_activity "
+                'WHERE "brandId" = %s AND agent = %s::"AgentType" AND action = %s '
+                'AND "dedupKey" = %s LIMIT 1',
+                (bid, agent_type, action, dedup),
+            )
+            return cur.fetchone() is not None
+    except Exception as exc:
+        logger.debug("seen_dedup_key failed: %s", exc)
+        return False
 
 
 def record_activity(
     brand_id: str, agent_type: str, action: str, detail: dict | None = None
 ) -> None:
-    """Append a line to the activity feed (best-effort, never raises)."""
-    record = {
-        "ts": _now(),
-        "brand_id": brand_id,
-        "agent": agent_type,
-        "action": action,
-        "detail": detail or {},
-    }
+    """Append a row to the ``agent_activity`` feed (best-effort, never raises).
+
+    ``detail['account_id']`` and ``detail['dedup']`` are promoted to the indexed
+    ``accountId`` / ``dedupKey`` columns that back the two guards above.
+    """
+    detail = detail or {}
     try:
-        settings.activity_file.parent.mkdir(parents=True, exist_ok=True)
-        with settings.activity_file.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(record, ensure_ascii=False) + "\n")
-    except OSError as exc:
+        bid = db.resolve_brand_id(brand_id)
+        with db.cursor() as cur:
+            cur.execute(
+                'INSERT INTO agent_activity '
+                '(id, "brandId", agent, action, detail, "dedupKey", "accountId", ts) '
+                'VALUES (%s, %s, %s::"AgentType", %s, %s, %s, %s, now())',
+                (
+                    db.new_id(),
+                    bid,
+                    agent_type,
+                    action,
+                    Json(detail),
+                    detail.get("dedup"),
+                    detail.get("account_id"),
+                ),
+            )
+    except Exception as exc:  # logging must never break a run
         logger.debug("Could not write activity: %s", exc)

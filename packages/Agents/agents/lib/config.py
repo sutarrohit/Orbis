@@ -108,43 +108,22 @@ class Settings:
         default_factory=lambda: _env_int("MAX_SALES_DMS_PER_DAY", 15)
     )
 
-    # ── File store (stand-in for Postgres) ───────────────────────────────────
-    data_dir: Path = field(
-        default_factory=lambda: Path(
-            os.environ.get("AGENT_DATA_DIR", str(PACKAGE_ROOT / "data"))
-        )
+    # ── Postgres (the source of truth) ───────────────────────────────────────
+    # The pooled connection string shared with apps/server. When set, the
+    # repositories in ``store.py`` write here instead of the JSON file store.
+    database_url: str | None = field(
+        default_factory=lambda: os.environ.get("DATABASE_URL") or None
+    )
+    # Slug/name of the brand the agents attribute work to when they pass the
+    # legacy string ``brand_id`` (e.g. "default"). Resolved to a real Brand row
+    # by ``agents.lib.db.resolve_brand_id`` (get-or-create).
+    default_brand_slug: str = field(
+        default_factory=lambda: os.environ.get("AGENT_DEFAULT_BRAND_SLUG", "default")
     )
 
     @property
-    def communities_file(self) -> Path:
-        return self.data_dir / "communities.json"
-
-    @property
-    def leads_file(self) -> Path:
-        return self.data_dir / "leads.json"
-
-    @property
-    def conversations_file(self) -> Path:
-        return self.data_dir / "conversations.json"
-
-    @property
-    def group_members_file(self) -> Path:
-        return self.data_dir / "group_members.json"
-
-    @property
-    def brand_profiles_file(self) -> Path:
-        return self.data_dir / "brand_profiles.json"
-
-    @property
-    def token_usage_file(self) -> Path:
-        return self.data_dir / "token_usage.jsonl"
-
-    @property
-    def activity_file(self) -> Path:
-        return self.data_dir / "agent_activity.jsonl"
-
-    @property
     def fixtures_dir(self) -> Path:
+        """Bundled Firecrawl fixtures (offline Search mode). Not a data store."""
         return PACKAGE_ROOT / "agents" / "fixtures"
 
 
