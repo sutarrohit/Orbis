@@ -143,6 +143,19 @@ class Settings:
         default_factory=lambda: _env_int("MAX_DMS_PER_DAY", 15)
     )
 
+    # ── Scheduler — the clock (§10) ──────────────────────────────────────────
+    # When enabled, the FastAPI app fires the Leader cycle + follow-up sweep on
+    # an interval. Off by default so importing the app never starts timers.
+    scheduler_enabled: bool = field(
+        default_factory=lambda: _env_bool("SCHEDULER_ENABLED", False)
+    )
+    leader_interval_minutes: int = field(
+        default_factory=lambda: _env_int("LEADER_INTERVAL_MINUTES", 5)
+    )
+    followup_interval_minutes: int = field(
+        default_factory=lambda: _env_int("FOLLOWUP_INTERVAL_MINUTES", 15)
+    )
+
     # ── Postgres (the source of truth) ───────────────────────────────────────
     # The pooled connection string shared with apps/server. When set, the
     # repositories in ``store.py`` write here instead of the JSON file store.

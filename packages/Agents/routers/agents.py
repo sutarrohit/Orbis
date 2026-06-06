@@ -26,6 +26,8 @@ from agents.agent_runners.sales import decide_reply as decide_sales_reply
 from agents.schemas.sales import SalesContext, SalesReply
 from agents.schemas.talk import LeadRecord, TalkContext, TalkDecision
 from agents.agent_runners.talk import decide_reply
+from agents.agent_runners.leader import run_leader_cycle
+from agents.schemas.leader import LeaderCycleResult
 
 router = APIRouter()
 
@@ -83,3 +85,17 @@ def list_leads(brand_id: str | None = None) -> list[LeadRecord]:
     """List flagged leads, optionally filtered by brand."""
     store = LeadStore()
     return store.for_brand(brand_id) if brand_id else store.all()
+
+
+@router.post("/agents/leader/run", response_model=LeaderCycleResult, status_code=201)
+def trigger_leader(
+    brand_id: str = "default", use_checkpointer: bool = True
+) -> LeaderCycleResult:
+    """Run ONE Leader cycle for a brand on demand.
+
+    The same cycle the scheduler fires every 5 min (load → decide → execute):
+    spawn Search/Research, assign communities, apply lead/account actions, and run
+    the outbound pipeline. ``use_checkpointer=false`` skips durable state (handy
+    for a quick manual run without the direct DB connection).
+    """
+    return run_leader_cycle(brand_id, use_checkpointer=use_checkpointer)

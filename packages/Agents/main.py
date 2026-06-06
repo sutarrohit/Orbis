@@ -1,24 +1,41 @@
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from scalar_fastapi import get_scalar_api_reference
 
+from agents.lib.config import settings
+from agents.scheduler import shutdown_scheduler, start_scheduler
 from errors.errors import PredictionAPIError
-from routers import accounts, agents
+from routers import accounts, agents, scheduler as scheduler_router
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # The clock (§10): fire the Leader + follow-up sweep on an interval.
+    # Off unless SCHEDULER_ENABLED=true, so importing the app never starts timers.
+    if settings.scheduler_enabled:
+        start_scheduler()
+    yield
+    if settings.scheduler_enabled:
+        shutdown_scheduler()
+
 
 app = FastAPI(
     title="PostPilot Agents API",
-    description="Agent layer for PostPilot — the five-agent squad (Search built so far).",
+    description="Agent layer for PostPilot — the five-agent squad + Leader, gateway, accounts.",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # Include Routers
 app.include_router(agents.router, prefix="/api", tags=["Agents"])
 app.include_router(accounts.router, prefix="/api", tags=["Accounts"])
+app.include_router(scheduler_router.router, prefix="/api", tags=["Scheduler"])
 
 app.add_middleware(
     CORSMiddleware,
@@ -65,6 +82,12 @@ async def unexpected_exception_handler(request: Request, exc: Exception):
             }
         },
     )
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    """Land on the Swagger UI."""
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/health")
