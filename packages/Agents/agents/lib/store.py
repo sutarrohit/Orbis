@@ -118,6 +118,41 @@ class CommunityStore:
         )
         return inserted, duplicates
 
+    # ── Gateway side: join + mark ────────────────────────────────────────────
+
+    def pending_join_assigned(self, limit: int = 5) -> list[dict]:
+        """Communities awaiting a join that have an account assigned (gateway-wide).
+
+        Returns dicts: ``id``, ``brand_id``, ``handle``, ``assigned_account_id``.
+        """
+        with db.cursor() as cur:
+            cur.execute(
+                'SELECT id, "brandId", handle, "assignedAccountId" FROM community '
+                'WHERE status = %s::"CommunityStatus" AND "assignedAccountId" IS NOT NULL '
+                'ORDER BY "createdAt" LIMIT %s',
+                ("pending_join", limit),
+            )
+            return [
+                {"id": r[0], "brand_id": r[1], "handle": r[2], "assigned_account_id": r[3]}
+                for r in cur.fetchall()
+            ]
+
+    def mark_joined(self, community_id: str, group_chat_id: str) -> None:
+        with db.cursor() as cur:
+            cur.execute(
+                'UPDATE community SET status = %s::"CommunityStatus", '
+                '"groupChatId" = %s, "updatedAt" = now() WHERE id = %s',
+                ("joined", group_chat_id, community_id),
+            )
+
+    def mark_rejected(self, community_id: str) -> None:
+        with db.cursor() as cur:
+            cur.execute(
+                'UPDATE community SET status = %s::"CommunityStatus", '
+                '"updatedAt" = now() WHERE id = %s',
+                ("rejected", community_id),
+            )
+
 
 class LeadStore:
     """Repository for flagged leads (``lead`` table, key ``(brandId, userId)``).
@@ -336,6 +371,28 @@ class ConversationStore:
             )
             return [self._row_to_record(r) for r in cur.fetchall()]
 
+    def add(
+        self,
+        brand_id: str,
+        user_id: str,
+        username: str,
+        group_chat_id: str,
+        text: str,
+    ) -> None:
+        """Record an inbound message (the gateway writes these; Research reads).
+
+        Idempotent on the natural key ``(brandId, userId, groupChatId, ts)``.
+        """
+        bid = db.resolve_brand_id(brand_id)
+        with db.cursor() as cur:
+            cur.execute(
+                'INSERT INTO conversation '
+                '(id, "brandId", "userId", username, "groupChatId", text, ts) '
+                "VALUES (%s, %s, %s, %s, %s, %s, now()) "
+                'ON CONFLICT ("brandId", "userId", "groupChatId", ts) DO NOTHING',
+                (db.new_id(), bid, user_id, username, group_chat_id, text),
+            )
+
 
 class GroupMemberStore:
     """Read-only repository for scraped group members (gateway → Research bus).
@@ -370,6 +427,41 @@ class GroupMemberStore:
                 (bid,),
             )
             return [self._row_to_record(r) for r in cur.fetchall()]
+
+    def upsert_many(self, records: list[GroupMemberRecord]) -> tuple[int, int]:
+        """Insert scraped members idempotently on ``(brandId, userId, groupChatId)``.
+
+        The gateway writes these after joining + scraping a group. Returns
+        ``(inserted, duplicates)``.
+        """
+        if not records:
+            return (0, 0)
+        bid = db.resolve_brand_id(records[0].brand_id)
+        inserted = 0
+        duplicates = 0
+        with db.cursor() as cur:
+            for rec in records:
+                cur.execute(
+                    'INSERT INTO group_member '
+                    '(id, "brandId", "userId", username, "groupChatId", bio, '
+                    '"activityNote", "updatedAt") '
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, now()) "
+                    'ON CONFLICT ("brandId", "userId", "groupChatId") DO NOTHING',
+                    (
+                        db.new_id(),
+                        bid,
+                        rec.user_id,
+                        rec.username,
+                        rec.group_chat_id,
+                        rec.bio,
+                        rec.activity_note,
+                    ),
+                )
+                if cur.rowcount == 1:
+                    inserted += 1
+                else:
+                    duplicates += 1
+        return inserted, duplicates
 
 
 class SocialAccountStore:
@@ -409,6 +501,40 @@ class SocialAccountStore:
                 (bid, "active"),
             )
             return cur.fetchall()
+
+    def all_active(self) -> list[dict]:
+        """Every active account WITH its (still-encrypted) session string, across
+        all brands. The gateway logs each one in. Skips accounts with no session."""
+        with db.cursor() as cur:
+            cur.execute(
+                'SELECT id, "brandId", "externalId", handle, "sessionString" '
+                'FROM social_account WHERE status = %s::"SocialAccountStatus" '
+                'AND "sessionString" IS NOT NULL',
+                ("active",),
+            )
+            return [
+                {
+                    "id": r[0],
+                    "brand_id": r[1],
+                    "external_id": r[2],
+                    "handle": r[3],
+                    "session_string": r[4],
+                }
+                for r in cur.fetchall()
+            ]
+
+    def mark_health(
+        self, account_id: str, status: str, *, checked: bool = True
+    ) -> None:
+        """Update an account's status (e.g. -> restricted) and health timestamp."""
+        sets = 'status = %s::"SocialAccountStatus", "updatedAt" = now()'
+        if checked:
+            sets += ', "lastHealthCheckAt" = now()'
+        with db.cursor() as cur:
+            cur.execute(
+                f"UPDATE social_account SET {sets} WHERE id = %s",
+                (status, account_id),
+            )
 
     def list_for_brand(self, brand_id: str) -> list[dict]:
         """All accounts for the brand as safe views (no session strings)."""
@@ -537,3 +663,46 @@ class PendingSendStore:
                 (db.new_id(), bid, lead_id, account_id, message, stage, "queued", dedup_key),
             )
             return cur.rowcount == 1
+
+    # ── Gateway side: drain the queue and mark delivery ──────────────────────
+
+    def next_queued(self, limit: int = 20) -> list[dict]:
+        """Oldest queued DMs across all brands, with the recipient's Telegram id.
+
+        Returns dicts: ``id`` (pending_send id), ``account_id`` (which account
+        sends), ``to_user_id`` (the lead's platform/Telegram id), ``message``,
+        ``stage``. The gateway uses this to deliver outbound DMs.
+        """
+        with db.cursor() as cur:
+            cur.execute(
+                'SELECT ps.id, ps."accountId", l."userId", ps.message, ps.stage '
+                'FROM pending_send ps JOIN lead l ON ps."leadId" = l.id '
+                'WHERE ps.status = %s::"PendingSendStatus" '
+                'ORDER BY ps."createdAt" LIMIT %s',
+                ("queued", limit),
+            )
+            return [
+                {
+                    "id": r[0],
+                    "account_id": r[1],
+                    "to_user_id": r[2],
+                    "message": r[3],
+                    "stage": r[4],
+                }
+                for r in cur.fetchall()
+            ]
+
+    def mark_sent(self, send_id: str) -> None:
+        with db.cursor() as cur:
+            cur.execute(
+                'UPDATE pending_send SET status = %s::"PendingSendStatus", '
+                '"sentAt" = now() WHERE id = %s',
+                ("sent", send_id),
+            )
+
+    def mark_failed(self, send_id: str) -> None:
+        with db.cursor() as cur:
+            cur.execute(
+                'UPDATE pending_send SET status = %s::"PendingSendStatus" WHERE id = %s',
+                ("failed", send_id),
+            )
