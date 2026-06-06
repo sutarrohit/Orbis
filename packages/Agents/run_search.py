@@ -21,7 +21,6 @@ from __future__ import annotations
 import argparse
 import logging
 
-from agents.lib.config import settings
 from agents.search import run_search
 
 
@@ -73,7 +72,7 @@ def main() -> None:
         f"pages_searched={result.pages_searched} discovered={result.discovered} "
         f"saved_new={result.saved_new} duplicates={result.duplicates}"
     )
-    print(f"\nCommunities (saved to {settings.communities_file}):")
+    print("\nCommunities (saved to the Postgres `community` table):")
     for c in result.communities:
         print(f"  [{c.niche_relevance:3d}] {c.handle:<32} ({c.found_via}) {c.name}")
 
