@@ -21,6 +21,7 @@ dependencies = [
     "psycopg-pool>=3.2",
     "psycopg[binary]>=3.2",
     "pydantic>=2.13.3",
+    "pyjwt>=2.10.0",
     "pyrogram>=2.0.106",
     "pytest>=9.0.3",
     "python-dotenv>=1.2.2",
