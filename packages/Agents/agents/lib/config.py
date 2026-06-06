@@ -123,11 +123,23 @@ class Settings:
         default_factory=lambda: _env_int("MAX_SALES_DMS_PER_DAY", 15)
     )
 
+    # ── Outbound state machine knobs (§9) ────────────────────────────────────
+    # Max outbound DMs one account may queue per brand per day (§11).
+    max_dms_per_day: int = field(
+        default_factory=lambda: _env_int("MAX_DMS_PER_DAY", 15)
+    )
+
     # ── Postgres (the source of truth) ───────────────────────────────────────
     # The pooled connection string shared with apps/server. When set, the
     # repositories in ``store.py`` write here instead of the JSON file store.
     database_url: str | None = field(
         default_factory=lambda: os.environ.get("DATABASE_URL") or None
+    )
+    # Direct (non-pgBouncer) connection for tools that need prepared statements
+    # or run DDL — notably the LangGraph checkpointer. If unset, db.py derives a
+    # session-pooler URL from DATABASE_URL.
+    direct_url: str | None = field(
+        default_factory=lambda: os.environ.get("DIRECT_URL") or None
     )
     # Slug/name of the brand the agents attribute work to when they pass the
     # legacy string ``brand_id`` (e.g. "default"). Resolved to a real Brand row

@@ -370,3 +370,75 @@ class GroupMemberStore:
                 (bid,),
             )
             return [self._row_to_record(r) for r in cur.fetchall()]
+
+
+class SocialAccountStore:
+    """Read repository for the gateway's sending accounts (``social_account``).
+
+    The outbound state machine reads active accounts to pick who sends each DM.
+    """
+
+    def active_for_brand(self, brand_id: str) -> list[tuple[str, str]]:
+        """Active accounts as ``(id, external_id)`` (only ``status='active'`` may act)."""
+        bid = db.resolve_brand_id(brand_id)
+        with db.cursor() as cur:
+            cur.execute(
+                'SELECT id, "externalId" FROM social_account '
+                'WHERE "brandId" = %s AND status = %s::"SocialAccountStatus"',
+                (bid, "active"),
+            )
+            return cur.fetchall()
+
+
+class PendingSendStore:
+    """Repository for the outbound DM queue (``pending_send``).
+
+    The outbound state machine writes queued DMs here; the gateway reads
+    ``status='queued'`` rows, delivers them, and marks them ``sent``. The dedup
+    key ``(brandId, dedupKey)`` makes queueing idempotent (a retry can't
+    double-send).
+    """
+
+    def already_queued_for_lead(self, brand_id: str, lead_id: str) -> bool:
+        """True if this lead already has any queued/sent DM (the dedup gate)."""
+        bid = db.resolve_brand_id(brand_id)
+        with db.cursor() as cur:
+            cur.execute(
+                'SELECT 1 FROM pending_send WHERE "brandId" = %s AND "leadId" = %s LIMIT 1',
+                (bid, lead_id),
+            )
+            return cur.fetchone() is not None
+
+    def count_today_by_account(self, brand_id: str) -> dict[str, int]:
+        """DMs queued today per account (backs the per-account daily cap)."""
+        bid = db.resolve_brand_id(brand_id)
+        with db.cursor() as cur:
+            cur.execute(
+                'SELECT "accountId", count(*) FROM pending_send '
+                'WHERE "brandId" = %s AND "createdAt" >= date_trunc(\'day\', now()) '
+                'GROUP BY "accountId"',
+                (bid,),
+            )
+            return {r[0]: int(r[1]) for r in cur.fetchall()}
+
+    def queue(
+        self,
+        brand_id: str,
+        lead_id: str,
+        account_id: str,
+        message: str,
+        stage: int,
+        dedup_key: str,
+    ) -> bool:
+        """Queue one DM (``status='queued'``). True if newly queued, False if a
+        row with the same ``(brandId, dedupKey)`` already exists."""
+        bid = db.resolve_brand_id(brand_id)
+        with db.cursor() as cur:
+            cur.execute(
+                'INSERT INTO pending_send '
+                '(id, "brandId", "leadId", "accountId", message, stage, status, "dedupKey") '
+                'VALUES (%s, %s, %s, %s, %s, %s, %s::"PendingSendStatus", %s) '
+                'ON CONFLICT ("brandId", "dedupKey") DO NOTHING',
+                (db.new_id(), bid, lead_id, account_id, message, stage, "queued", dedup_key),
+            )
+            return cur.rowcount == 1
