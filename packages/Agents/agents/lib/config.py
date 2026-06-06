@@ -123,6 +123,12 @@ class Settings:
         default_factory=lambda: _env_int("MAX_SALES_DMS_PER_DAY", 15)
     )
 
+    # ── Outbound state machine knobs (§9) ────────────────────────────────────
+    # Max outbound DMs one account may queue per brand per day (§11).
+    max_dms_per_day: int = field(
+        default_factory=lambda: _env_int("MAX_DMS_PER_DAY", 15)
+    )
+
     # ── Postgres (the source of truth) ───────────────────────────────────────
     # The pooled connection string shared with apps/server. When set, the
     # repositories in ``store.py`` write here instead of the JSON file store.
