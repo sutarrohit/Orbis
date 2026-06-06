@@ -11,6 +11,7 @@ import { activityRouter } from "./routes/activity/index.js";
 import { learningsRouter } from "./routes/learnings/index.js";
 import { usageRouter } from "./routes/usage/index.js";
 import { agentStateRouter } from "./routes/agent-state/index.js";
+import { agentsRouter } from "./routes/agents/index.js";
 
 import type { Context } from "hono";
 import type { AppBinding } from "./lib/types.js";
@@ -39,7 +40,8 @@ const v1 = [
   activityRouter,
   learningsRouter,
   usageRouter,
-  agentStateRouter
+  agentStateRouter,
+  agentsRouter
 ] as const;
 for (const router of v1) {
   app.route("/api/v1", router);
