@@ -373,10 +373,31 @@ class GroupMemberStore:
 
 
 class SocialAccountStore:
-    """Read repository for the gateway's sending accounts (``social_account``).
+    """Repository for the gateway's sending accounts (``social_account``).
 
-    The outbound state machine reads active accounts to pick who sends each DM.
+    The outbound state machine reads active accounts to pick who sends each DM;
+    the account-login flow writes them (one row per connected Telegram account).
     """
+
+    # Safe columns for listing — never includes the secret ``sessionString``.
+    _SAFE_COLUMNS = (
+        'id, "externalId", handle, phone, "displayName", platform, status, '
+        '"lastHealthCheckAt", "createdAt"'
+    )
+
+    @staticmethod
+    def _row_to_view(r: tuple) -> dict:
+        return {
+            "id": r[0],
+            "external_id": r[1],
+            "handle": r[2],
+            "phone": r[3],
+            "display_name": r[4],
+            "platform": r[5],
+            "status": r[6],
+            "last_health_check_at": _iso(r[7]),
+            "created_at": _iso(r[8]),
+        }
 
     def active_for_brand(self, brand_id: str) -> list[tuple[str, str]]:
         """Active accounts as ``(id, external_id)`` (only ``status='active'`` may act)."""
@@ -388,6 +409,80 @@ class SocialAccountStore:
                 (bid, "active"),
             )
             return cur.fetchall()
+
+    def list_for_brand(self, brand_id: str) -> list[dict]:
+        """All accounts for the brand as safe views (no session strings)."""
+        bid = db.resolve_brand_id(brand_id)
+        with db.cursor() as cur:
+            cur.execute(
+                f'SELECT {self._SAFE_COLUMNS} FROM social_account '
+                'WHERE "brandId" = %s ORDER BY "createdAt"',
+                (bid,),
+            )
+            return [self._row_to_view(r) for r in cur.fetchall()]
+
+    def upsert(
+        self,
+        brand_id: str,
+        external_id: str,
+        *,
+        handle: str = "",
+        phone: str | None = None,
+        display_name: str | None = None,
+        session_string: str | None = None,
+        status: str = "active",
+    ) -> dict:
+        """Insert or update an account keyed by ``(brandId, externalId)``.
+
+        ``session_string`` must already be **encrypted** (see ``agents.lib.crypto``).
+        Returns the safe view of the stored row.
+        """
+        bid = db.resolve_brand_id(brand_id)
+        with db.cursor() as cur:
+            cur.execute(
+                'INSERT INTO social_account '
+                '(id, "brandId", "externalId", handle, phone, "displayName", '
+                '"sessionString", status, "updatedAt") '
+                'VALUES (%s, %s, %s, %s, %s, %s, %s, %s::"SocialAccountStatus", now()) '
+                'ON CONFLICT ("brandId", "externalId") DO UPDATE SET '
+                "handle = EXCLUDED.handle, phone = EXCLUDED.phone, "
+                '"displayName" = EXCLUDED."displayName", '
+                '"sessionString" = EXCLUDED."sessionString", '
+                "status = EXCLUDED.status, \"updatedAt\" = now() "
+                f"RETURNING {self._SAFE_COLUMNS}",
+                (
+                    db.new_id(),
+                    bid,
+                    external_id,
+                    handle,
+                    phone,
+                    display_name,
+                    session_string,
+                    status,
+                ),
+            )
+            return self._row_to_view(cur.fetchone())
+
+    def set_status(self, brand_id: str, account_id: str, status: str) -> bool:
+        """Activate / pause / restrict an account. True if a row was updated."""
+        bid = db.resolve_brand_id(brand_id)
+        with db.cursor() as cur:
+            cur.execute(
+                'UPDATE social_account SET status = %s::"SocialAccountStatus", '
+                '"updatedAt" = now() WHERE "brandId" = %s AND id = %s',
+                (status, bid, account_id),
+            )
+            return cur.rowcount == 1
+
+    def delete(self, brand_id: str, account_id: str) -> bool:
+        """Remove an account. True if a row was deleted."""
+        bid = db.resolve_brand_id(brand_id)
+        with db.cursor() as cur:
+            cur.execute(
+                'DELETE FROM social_account WHERE "brandId" = %s AND id = %s',
+                (bid, account_id),
+            )
+            return cur.rowcount == 1
 
 
 class PendingSendStore:

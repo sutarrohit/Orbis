@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from scalar_fastapi import get_scalar_api_reference
 
 from errors.errors import PredictionAPIError
-from routers import agents
+from routers import accounts, agents
 
 app = FastAPI(
     title="PostPilot Agents API",
@@ -18,6 +18,7 @@ app = FastAPI(
 
 # Include Routers
 app.include_router(agents.router, prefix="/api", tags=["Agents"])
+app.include_router(accounts.router, prefix="/api", tags=["Accounts"])
 
 app.add_middleware(
     CORSMiddleware,

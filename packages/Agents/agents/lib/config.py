@@ -80,6 +80,20 @@ class Settings:
         )
     )
 
+    # ── Telegram (account login via MTProto / Pyrogram) ──────────────────────
+    telegram_api_id: int = field(
+        default_factory=lambda: _env_int("TELEGRAM_API_ID", 0)
+    )
+    telegram_api_hash: str | None = field(
+        default_factory=lambda: os.environ.get("TELEGRAM_API_HASH") or None
+    )
+    # Fernet key (url-safe base64, 32 bytes) used to encrypt account session
+    # strings at rest. Generate one with:
+    #   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    account_enc_key: str | None = field(
+        default_factory=lambda: os.environ.get("ACCOUNT_ENC_KEY") or None
+    )
+
     # ── Firecrawl ────────────────────────────────────────────────────────────
     firecrawl_api_key: str | None = field(
         default_factory=lambda: os.environ.get("FIRECRAWL_API_KEY") or None

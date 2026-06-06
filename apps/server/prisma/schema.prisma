@@ -183,14 +183,23 @@ model BrandProfile {
 
 /// A platform sending account the gateway operates (Telegram/Discord).
 model SocialAccount {
-  id         String              @id @default(uuid())
-  brandId    String
-  platform   Platform            @default(telegram)
-  externalId String
-  handle     String              @default("")
-  status     SocialAccountStatus @default(active)
-  createdAt  DateTime            @default(now())
-  updatedAt  DateTime            @updatedAt
+  id                String              @id @default(uuid())
+  brandId           String
+  platform          Platform            @default(telegram)
+  externalId        String
+  handle            String              @default("")
+  /// The account's phone number (the login identifier for Telegram MTProto).
+  phone             String?
+  /// Friendly name shown in the dashboard.
+  displayName       String?
+  /// The MTProto session string — the credential the gateway logs in with.
+  /// Sensitive (full account access): store ENCRYPTED at rest, never log it.
+  sessionString     String?
+  status            SocialAccountStatus @default(active)
+  /// Last time the account's session was verified alive/healthy.
+  lastHealthCheckAt DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
 
   brand        Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade)
   communities  Community[]

@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "black>=26.3.1",
+    "cryptography>=48.0.0",
     "einops==0.8.1",
     "fastapi[standard]>=0.115.0",
     "firecrawl-py>=4.28.2",
@@ -19,6 +20,7 @@ dependencies = [
     "psycopg-pool>=3.2",
     "psycopg[binary]>=3.2",
     "pydantic>=2.13.3",
+    "pyrogram>=2.0.106",
     "pytest>=9.0.3",
     "python-dotenv>=1.2.2",
     "requests>=2.32.0",
