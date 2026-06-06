@@ -1,29 +1,21 @@
 import { mutationOptions, queryOptions } from "@tanstack/react-query";
-import { getThread, listConversations, sendReply } from "./conversation-apis";
+import { listConversations, sendMessage, type ListConversationsParams } from "./conversation-apis";
 
 export const conversationKeys = {
   all: ["conversations"] as const,
-  thread: (id: string) => ["conversations", id, "messages"] as const
+  list: (params: ListConversationsParams) => ["conversations", params] as const
 };
 
-export function listConversationsQueryOptions() {
+export function listConversationsQueryOptions(params: ListConversationsParams = {}) {
   return queryOptions({
-    queryKey: conversationKeys.all,
-    queryFn: listConversations
+    queryKey: conversationKeys.list(params),
+    queryFn: () => listConversations(params)
   });
 }
 
-export function threadQueryOptions(id: string) {
-  return queryOptions({
-    queryKey: conversationKeys.thread(id),
-    queryFn: () => getThread(id),
-    enabled: id.length > 0
-  });
-}
-
-export function sendReplyMutationOptions() {
+export function sendMessageMutationOptions() {
   return mutationOptions({
-    mutationKey: ["conversations", "reply"],
-    mutationFn: ({ id, content }: { id: string; content: string }) => sendReply(id, content)
+    mutationKey: ["conversations", "send"],
+    mutationFn: sendMessage
   });
 }
