@@ -21,8 +21,8 @@ from agents.lib import guardrails as guardrails_mod
 from agents.lib import store as store_mod
 from agents.lib.config import Settings
 from agents.lib.store import LeadStore
-from agents.research import agent as research_agent
-from agents.research import run_research
+from agents.agent_runners.research import agent as research_agent
+from agents.agent_runners.research import run_research
 from agents.schemas.research import ScoredLead
 from agents.schemas.talk import LeadRecord
 

@@ -21,7 +21,7 @@ from __future__ import annotations
 import argparse
 import logging
 
-from agents.search import run_search
+from agents.agent_runners.search import run_search
 
 
 def main() -> None:

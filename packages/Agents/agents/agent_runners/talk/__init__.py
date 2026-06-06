@@ -5,6 +5,6 @@ the separate gateway service calls ``decide_reply`` once per inbound group
 message. Shared foundations live in ``agents.lib``; its prompt and schemas live
 in ``agents.prompts.talk`` / ``agents.schemas.talk``."""
 
-from agents.talk.agent import decide_reply
+from .agent import decide_reply
 
 __all__ = ["decide_reply"]

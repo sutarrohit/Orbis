@@ -5,6 +5,6 @@ from the bus and writes scored people into the shared lead store (``LeadStore``)
 Shared foundations live in ``agents.lib``; its prompts and schemas live in
 ``agents.prompts.research`` / ``agents.schemas.research``."""
 
-from agents.research.agent import run_research
+from .agent import run_research
 
 __all__ = ["run_research"]

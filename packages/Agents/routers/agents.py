@@ -17,15 +17,15 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from agents.lib.store import CommunityStore, LeadStore
-from agents.research import run_research
+from agents.agent_runners.research import run_research
 from agents.schemas.research import ResearchRunRequest, ResearchRunResult
 from agents.schemas.search import CommunityRecord, SearchRunResult
-from agents.search import run_search
+from agents.agent_runners.search import run_search
 from agents.schemas.search import SearchRunRequest
-from agents.sales import decide_reply as decide_sales_reply
+from agents.agent_runners.sales import decide_reply as decide_sales_reply
 from agents.schemas.sales import SalesContext, SalesReply
 from agents.schemas.talk import LeadRecord, TalkContext, TalkDecision
-from agents.talk import decide_reply
+from agents.agent_runners.talk import decide_reply
 
 router = APIRouter()
 

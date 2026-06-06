@@ -17,8 +17,8 @@ from agents.lib import guardrails as guardrails_mod
 from agents.lib import store as store_mod
 from agents.lib.config import Settings
 from agents.lib.store import LeadStore
-from agents.sales import agent as sales_agent
-from agents.sales import decide_reply
+from agents.agent_runners.sales import agent as sales_agent
+from agents.agent_runners.sales import decide_reply
 from agents.schemas.sales import BrandProfile, SalesContext, SalesDecision
 from agents.schemas.talk import LeadRecord
 

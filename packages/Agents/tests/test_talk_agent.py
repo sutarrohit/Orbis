@@ -20,8 +20,8 @@ from agents.lib import store as store_mod
 from agents.lib.config import Settings
 from agents.lib.store import LeadStore
 from agents.schemas.talk import ReplyDecision, TalkContext
-from agents.talk import agent as talk_agent
-from agents.talk import decide_reply
+from agents.agent_runners.talk import agent as talk_agent
+from agents.agent_runners.talk import decide_reply
 
 
 @pytest.fixture

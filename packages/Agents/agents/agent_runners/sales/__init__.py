@@ -5,6 +5,6 @@ Leader; the separate gateway service calls ``decide_reply`` once per inbound DM
 from a known lead. Shared foundations live in ``agents.lib``; its prompt and
 schemas live in ``agents.prompts.sales`` / ``agents.schemas.sales``."""
 
-from agents.sales.agent import decide_reply
+from .agent import decide_reply
 
 __all__ = ["decide_reply"]
