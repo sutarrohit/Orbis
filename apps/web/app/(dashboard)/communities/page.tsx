@@ -9,6 +9,7 @@ import { listAccountsQueryOptions } from "@/lib/api/accounts/accounts-queries";
 import type { CommunityStatus } from "@/lib/api/enums";
 import { AddCommunityDialog } from "@/components/communities/add-community-dialog";
 import { CommunityRow } from "@/components/communities/community-row";
+import { CommunityStats } from "@/components/communities/community-stats";
 import { EmptyState, ErrorState, TableLoadingRows } from "@/components/data/data-states";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,15 +25,23 @@ export default function CommunitiesPage() {
   const [tab, setTab] = useState<CommunityStatus | "all">("all");
   const params = tab === "all" ? {} : { status: tab };
 
+  const { data: allCommunities } = useQuery(listCommunitiesQueryOptions());
   const { data, isPending, isError, refetch } = useQuery(listCommunitiesQueryOptions(params));
   const { data: accounts } = useQuery(listAccountsQueryOptions());
 
   return (
     <main className='flex flex-1 flex-col gap-4 p-4'>
       <div className='flex items-center justify-between'>
-        <h1 className='text-lg font-medium'>Communities</h1>
+        <div>
+          <h1 className='text-lg font-medium'>Communities</h1>
+          <p className='text-sm text-muted-foreground'>
+            Track and manage your joined communities across platforms
+          </p>
+        </div>
         <AddCommunityDialog />
       </div>
+
+      {allCommunities && <CommunityStats data={allCommunities} />}
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as CommunityStatus | "all")}>
         <TabsList>

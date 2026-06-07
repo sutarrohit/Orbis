@@ -9,6 +9,7 @@ import { listLeadsQueryOptions } from "@/lib/api/leads/leads-queries";
 import type { LeadStatus } from "@/lib/api/enums";
 import { EmptyState, ErrorState, TableLoadingRows } from "@/components/data/data-states";
 import { StatusBadge } from "@/components/data/status-badge";
+import { LeadStats } from "@/components/leads/lead-stats";
 import { formatRelativeTime } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -29,13 +30,21 @@ export default function LeadsPage() {
   const [tab, setTab] = useState<LeadStatus | "all">("all");
   const params = tab === "all" ? {} : { status: tab };
 
+  const { data: allLeads } = useQuery(listLeadsQueryOptions());
   const { data, isPending, isError, refetch } = useQuery(listLeadsQueryOptions(params));
-  const counts = data?.counts;
+  const counts = data?.counts ?? allLeads?.counts;
   const totalCount = counts ? Object.values(counts).reduce((sum, n) => sum + n, 0) : 0;
 
   return (
     <main className='flex flex-1 flex-col gap-4 p-4'>
-      <h1 className='text-lg font-medium'>Leads</h1>
+      <div>
+        <h1 className='text-lg font-medium'>Leads</h1>
+        <p className='text-sm text-muted-foreground'>
+          Track and manage potential leads from community engagement
+        </p>
+      </div>
+
+      {allLeads && <LeadStats data={allLeads.data} />}
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as LeadStatus | "all")}>
         <TabsList>
