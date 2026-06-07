@@ -90,23 +90,23 @@ const data = {
     }
   ],
   navMain: [
-    {
-      title: "Getting Started",
-      url: "#",
-      icon: Rocket,
-      items: [
-        {
-          title: "Installation",
-          url: "#",
-          icon: Download
-        },
-        {
-          title: "Project Structure",
-          url: "#",
-          icon: FolderTree
-        }
-      ]
-    }
+    // {
+    //   title: "Getting Started",
+    //   url: "#",
+    //   icon: Rocket,
+    //   items: [
+    //     {
+    //       title: "Installation",
+    //       url: "#",
+    //       icon: Download
+    //     },
+    //     {
+    //       title: "Project Structure",
+    //       url: "#",
+    //       icon: FolderTree
+    //     }
+    //   ]
+    // }
     // {
     //   title: "Community",
     //   url: "#",
@@ -125,7 +125,8 @@ const data = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
 
-  const isActive = (url: string) => (url === "/" ? pathname === "/" : pathname === url || pathname.startsWith(`${url}/`));
+  const isActive = (url: string) =>
+    url === "/" ? pathname === "/" : pathname === url || pathname.startsWith(`${url}/`);
 
   return (
     <Sidebar {...props}>
@@ -151,7 +152,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {/* Main menu — rendered before the collapsible groups. */}
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className='gap-2'>
               {data.mainMenu.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={item.title}>
@@ -166,39 +167,38 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* We create a collapsible SidebarGroup for each parent. */}
-        {data.navMain.map((item) => (
-          <Collapsible key={item.title} title={item.title} defaultOpen={false} className='group/collapsible'>
-            <SidebarGroup>
-              <SidebarGroupLabel
-                asChild
-                className='group/label text-sm text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-              >
-                <CollapsibleTrigger>
-                  <item.icon className='mr-2 size-4' />
-                  {item.title}{" "}
-                  <ChevronRightIcon className='ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90' />
-                </CollapsibleTrigger>
-              </SidebarGroupLabel>
-              <CollapsibleContent>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {item.items.map((item) => (
-                      <SidebarMenuItem key={item.title}>
-                        <SidebarMenuButton asChild>
-                          <Link href={item.url}>
-                            <item.icon />
-                            <span>{item.title}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </CollapsibleContent>
-            </SidebarGroup>
-          </Collapsible>
-        ))}
+        {/* {data.navMain.map((item) => (
+          // <Collapsible key={item.title} title={item.title} defaultOpen={false} className='group/collapsible'>
+          //   <SidebarGroup>
+          //     <SidebarGroupLabel
+          //       asChild
+          //       className='group/label text-sm text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+          //     >
+          //       <CollapsibleTrigger>
+          //         <item.icon className='mr-2 size-4' />
+          //         {item.title}{" "}
+          //         <ChevronRightIcon className='ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90' />
+          //       </CollapsibleTrigger>
+          //     </SidebarGroupLabel>
+          //     <CollapsibleContent>
+          //       <SidebarGroupContent>
+          //         <SidebarMenu>
+          //           {item.items.map((item) => (
+          //             <SidebarMenuItem key={item.title}>
+          //               <SidebarMenuButton asChild>
+          //                 <Link href={item.url}>
+          //                   <item.icon />
+          //                   <span>{item.title}</span>
+          //                 </Link>
+          //               </SidebarMenuButton>
+          //             </SidebarMenuItem>
+          //           ))}
+          //         </SidebarMenu>
+          //       </SidebarGroupContent>
+          //     </CollapsibleContent>
+          //   </SidebarGroup>
+          // </Collapsible>
+        ))} */}
       </SidebarContent>
       <SidebarRail />
 

@@ -65,16 +65,11 @@ export function OnboardingForm() {
 
           <div className='flex flex-col gap-2'>
             <Label htmlFor='slug'>Slug</Label>
-            <Input
-              id='slug'
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              placeholder='optional-url-handle'
-            />
+            <Input id='slug' value={slug} onChange={(e) => setSlug(e.target.value)} placeholder='optional-url-handle' />
           </div>
         </CardContent>
 
-        <CardFooter>
+        <CardFooter className='mt-4'>
           <Button type='submit' className='w-full' disabled={isPending || name.trim().length === 0}>
             {isPending ? <Spinner /> : null}
             {isPending ? "Creating…" : "Create brand"}
