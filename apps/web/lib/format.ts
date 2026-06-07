@@ -36,6 +36,20 @@ export function formatDateTime(iso: string | null | undefined): string {
   return Number.isNaN(date.getTime()) ? "" : DATE_TIME.format(date);
 }
 
+const TIME = new Intl.DateTimeFormat("en-US", {
+  hour: "numeric",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: true
+});
+
+/** Clock time, e.g. "5:48:36 AM". */
+export function formatTime(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? "" : TIME.format(date);
+}
+
 /** Thousands-separated number, e.g. 12345 -> "12,345". */
 export function formatNumber(value: number | null | undefined): string {
   return typeof value === "number" && Number.isFinite(value) ? NUMBER.format(value) : "0";
