@@ -11,11 +11,13 @@ import { Input } from "@/components/ui/input";
 export function ChipListEditor({
   values,
   onChange,
-  placeholder
+  placeholder,
+  addLabel,
 }: {
   values: string[];
   onChange: (next: string[]) => void;
   placeholder?: string;
+  addLabel?: React.ReactNode;
 }) {
   const [draft, setDraft] = useState("");
 
@@ -34,8 +36,8 @@ export function ChipListEditor({
   }
 
   return (
-    <div className='flex flex-col gap-2'>
-      <div className='flex gap-2'>
+    <div className="flex flex-col gap-2">
+      <div className="flex gap-2">
         <Input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -47,17 +49,27 @@ export function ChipListEditor({
           }}
           placeholder={placeholder}
         />
-        <Button type='button' variant='outline' onClick={add}>
-          Add
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={add}
+          className="gap-1"
+        >
+          {addLabel ?? "Add"}
         </Button>
       </div>
       {values.length > 0 ? (
-        <div className='flex flex-wrap gap-1.5'>
+        <div className="flex flex-wrap gap-1.5">
           {values.map((value, i) => (
-            <Badge key={`${value}-${i}`} variant='secondary' className='gap-1'>
+            <Badge key={`${value}-${i}`} variant="secondary" className="gap-1">
               {value}
-              <button type='button' onClick={() => remove(i)} aria-label={`Remove ${value}`}>
-                <X className='size-3' />
+              <button
+                type="button"
+                onClick={() => remove(i)}
+                aria-label={`Remove ${value}`}
+              >
+                <X className="size-3" />
               </button>
             </Badge>
           ))}

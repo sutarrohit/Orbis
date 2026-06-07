@@ -391,20 +391,32 @@ model Learning {
 /// Per-agent, per-brand behaviour configuration (one row per brand+agent).
 /// Drives each agent's voice/guardrails from the dashboard.
 model AgentConfig {
-  id            String    @id @default(uuid())
-  brandId       String
-  agentType     AgentType
-  enabled       Boolean   @default(true)
+  id                 String    @id @default(uuid())
+  brandId            String
+  agentType          AgentType
+  enabled            Boolean   @default(true)
+  /// Persona display name, e.g. "Alex".
+  personaName        String    @default("")
+  /// Response style preset, e.g. "professional", "casual", "friendly".
+  responseStyle      String    @default("")
+  /// Free-text persona description.
+  personaDescription String    @default("")
   /// Short voice/tone tags, e.g. ["friendly", "concise"].
-  voiceTags     String[]
+  voiceTags          String[]
+  /// Free-text voice description.
+  voiceDescription   String    @default("")
   /// Free-text do/don't rules injected into the agent's prompt.
-  behaviorRules String[]
+  behaviorRules      String[]
   /// Topics the agent must never bring up.
-  bannedTopics  String[]
+  bannedTopics       String[]
   /// Optional extra system-prompt text appended for this agent.
-  systemPrompt  String    @default("")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  systemPrompt       String    @default("")
+  /// Free-text knowledge base (product info, FAQs, brand guidelines).
+  knowledgeBase      String    @default("")
+  /// Max response length in words (0 = no limit).
+  maxResponseLength  Int       @default(0)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
 
