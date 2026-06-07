@@ -5,6 +5,7 @@ import { CircleUser } from "lucide-react";
 
 import { listAccountsQueryOptions } from "@/lib/api/accounts/accounts-queries";
 import { AccountRow } from "@/components/accounts/account-row";
+import { AccountStats } from "@/components/accounts/account-stats";
 import { ConnectAccountDialog } from "@/components/accounts/connect-account-dialog";
 import { EmptyState, ErrorState, TableLoadingRows } from "@/components/data/data-states";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -15,9 +16,16 @@ export default function AccountsPage() {
   return (
     <main className='flex flex-1 flex-col gap-4 p-4'>
       <div className='flex items-center justify-between'>
-        <h1 className='text-lg font-medium'>Accounts</h1>
+        <div>
+          <h1 className='text-lg font-medium'>Accounts</h1>
+          <p className='text-sm text-muted-foreground'>
+            Manage Telegram and Discord accounts for engagement and lead generation
+          </p>
+        </div>
         <ConnectAccountDialog />
       </div>
+
+      {data && <AccountStats data={data} />}
 
       {isError ? (
         <ErrorState title='Could not load accounts' onRetry={() => refetch()} />
