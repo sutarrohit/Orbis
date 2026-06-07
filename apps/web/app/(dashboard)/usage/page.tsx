@@ -5,25 +5,12 @@ import { useQuery } from "@tanstack/react-query";
 
 import { getUsageQueryOptions } from "@/lib/api/usage/usage-queries";
 import { ErrorState, LoadingState } from "@/components/data/data-states";
+import { StatCard } from "@/components/usage/stat-card";
 import { formatNumber } from "@/lib/format";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const RANGES = [7, 30, 90];
-
-function StatCard({ label, value }: { label: string; value: number }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className='text-xs font-normal text-muted-foreground'>{label}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <span className='text-2xl font-semibold'>{formatNumber(value)}</span>
-      </CardContent>
-    </Card>
-  );
-}
 
 export default function UsagePage() {
   const [days, setDays] = useState(30);
