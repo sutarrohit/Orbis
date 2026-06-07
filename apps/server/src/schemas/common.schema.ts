@@ -8,7 +8,7 @@ export const ErrorSchema = z
   .object({
     statusCode: z.number().openapi({ example: 404 }),
     message: z.string().openapi({ example: "Resource not found" }),
-    stack: z.string().optional()
+    stack: z.string().optional(),
   })
   .openapi("Error");
 
@@ -18,13 +18,23 @@ export const ErrorSchema = z
  * hence the `string`/`date-time` override so the OpenAPI doc is accurate.
  */
 export const dateField = () =>
-  z.date().openapi({ type: "string", format: "date-time", example: "2025-01-01T00:00:00.000Z" });
+  z
+    .date()
+    .openapi({
+      type: "string",
+      format: "date-time",
+      example: "2025-01-01T00:00:00.000Z",
+    });
 
 export const nullableDateField = () =>
   z
     .date()
     .nullable()
-    .openapi({ type: "string", format: "date-time", example: "2025-01-01T00:00:00.000Z" });
+    .openapi({
+      type: "string",
+      format: "date-time",
+      example: "2025-01-01T00:00:00.000Z",
+    });
 
 /** Cookie-session security requirement applied to every authenticated route. */
 export const protectedSecurity = [{ cookieAuth: [] }];

@@ -7,10 +7,16 @@ export interface AgentConfig {
   brandId: string;
   agentType: AgentType;
   enabled: boolean;
+  personaName: string;
+  responseStyle: string;
+  personaDescription: string;
   voiceTags: string[];
+  voiceDescription: string;
   behaviorRules: string[];
   bannedTopics: string[];
   systemPrompt: string;
+  knowledgeBase: string;
+  maxResponseLength: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -18,16 +24,27 @@ export interface AgentConfig {
 export interface UpsertAgentConfigInput {
   agentType: AgentType;
   enabled?: boolean;
+  personaName?: string;
+  responseStyle?: string;
+  personaDescription?: string;
   voiceTags?: string[];
+  voiceDescription?: string;
   behaviorRules?: string[];
   bannedTopics?: string[];
   systemPrompt?: string;
+  knowledgeBase?: string;
+  maxResponseLength?: number;
 }
 
 export function listAgentConfig(): Promise<AgentConfig[]> {
   return request("/agent-config");
 }
 
-export function upsertAgentConfig(input: UpsertAgentConfigInput): Promise<AgentConfig> {
-  return request("/agent-config", { method: "POST", body: JSON.stringify(input) });
+export function upsertAgentConfig(
+  input: UpsertAgentConfigInput,
+): Promise<AgentConfig> {
+  return request("/agent-config", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
