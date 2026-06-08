@@ -65,6 +65,30 @@ class Settings:
         or None
     )
 
+    # ── Custom OpenAI-compatible proxy (Responses API) ───────────────────────
+    # When ``USE_CUSTOM_LLM`` is truthy, EVERY structured LLM call is routed to
+    # this proxy instead of the LangChain path below. The proxy speaks the
+    # OpenAI "Responses" API and is strict: ``input`` must be a message list and
+    # the reply streams back as Server-Sent Events. See agents/lib/custom_llm.py.
+    use_custom_llm: bool = field(
+        default_factory=lambda: _env_bool("USE_CUSTOM_LLM", False)
+    )
+    custom_llm_base_url: str = field(
+        default_factory=lambda: os.environ.get(
+            "CRS_BASE_URL", "https://proxy.45.79.125.124.sslip.io/openai"
+        )
+    )
+    custom_llm_model: str = field(
+        default_factory=lambda: os.environ.get("CRS_MODEL", "gpt-5.5")
+    )
+    custom_llm_api_key: str | None = field(
+        default_factory=lambda: os.environ.get("CRS_API_KEY") or None
+    )
+    # Optional reasoning effort passed to the Responses API ("low"/"medium"/"high").
+    custom_llm_effort: str | None = field(
+        default_factory=lambda: os.environ.get("CRS_EFFORT") or None
+    )
+
     # ── OpenRouter fallback ──────────────────────────────────────────────────
     # When set, every LLM call falls back to OpenRouter if the primary model
     # errors (e.g. an OpenAI quota / 429). OpenRouter is OpenAI-compatible.

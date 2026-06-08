@@ -9,8 +9,9 @@ from __future__ import annotations
 
 from agents.agent_runners.search.firecrawl_client import WebSearchResult
 
-# Cap how much page text we hand the model per result, to keep token use sane.
-_MAX_CHARS_PER_RESULT = 4000
+# Cap how much page-body text we hand the model per result, to keep token use
+# sane. High-signal fields (url/title/telegram links) are added on top of this.
+_MAX_CHARS_PER_RESULT = 8000
 
 
 def render_search_prompt(niche: str, results: list[WebSearchResult]) -> str:
@@ -18,11 +19,18 @@ def render_search_prompt(niche: str, results: list[WebSearchResult]) -> str:
 
     The model must return a ``SearchResult`` (handled by structured output): a
     list of real Telegram communities with a 0-100 niche relevance score.
+
+    High-signal fields (URL, title, and any Telegram links Firecrawl extracted)
+    are placed *before* the page body, so they survive even when a long page
+    (e.g. one fronted by a cookie banner) gets truncated.
     """
     blocks: list[str] = []
     for i, r in enumerate(results, start=1):
-        body = r.text[:_MAX_CHARS_PER_RESULT]
-        blocks.append(f"--- RESULT {i} ---\nURL: {r.url}\n{body}".strip())
+        header = f"--- RESULT {i} ---\nURL: {r.url}\nTITLE: {r.title}"
+        if r.links:
+            header += "\nTELEGRAM LINKS FOUND ON PAGE:\n" + "\n".join(r.links)
+        body = r.markdown[:_MAX_CHARS_PER_RESULT]
+        blocks.append(f"{header}\n{body}".strip())
     corpus = "\n\n".join(blocks) if blocks else "(no web results)"
 
     return (

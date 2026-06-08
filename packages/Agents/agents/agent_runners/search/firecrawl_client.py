@@ -18,11 +18,20 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from agents.lib.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _meta_get(meta, key: str) -> str:
+    """Read a metadata field whether ``meta`` is a model, a dict, or None."""
+    if meta is None:
+        return ""
+    if isinstance(meta, dict):
+        return meta.get(key, "") or ""
+    return getattr(meta, key, "") or ""
 
 
 @dataclass
@@ -33,11 +42,18 @@ class WebSearchResult:
     title: str = ""
     description: str = ""
     markdown: str = ""
+    # Telegram-relevant links (t.me/...) Firecrawl extracted from the page. These
+    # often live in footers beyond the markdown we hand the LLM, so we surface
+    # them explicitly — they're the highest-signal source of real handles.
+    links: list[str] = field(default_factory=list)
 
     @property
     def text(self) -> str:
         """All textual content, for LLM extraction and the regex pass."""
-        return "\n".join(p for p in (self.title, self.description, self.markdown) if p)
+        parts = [self.title, self.description, self.markdown]
+        if self.links:
+            parts.append("TELEGRAM LINKS:\n" + "\n".join(self.links))
+        return "\n".join(p for p in parts if p)
 
 
 class FirecrawlSearchError(RuntimeError):
@@ -56,9 +72,9 @@ def _search_live(query: str, *, limit: int, scrape: bool) -> list[WebSearchResul
     fc = Firecrawl(api_key=settings.firecrawl_api_key)
     kwargs: dict = {"limit": limit, "sources": ["web"]}
     if scrape:
-        # Pull page markdown so the LLM/regex can see handles in the body, not
-        # just the title/description.
-        kwargs["scrape_options"] = ScrapeOptions(formats=["markdown"])
+        # Pull page markdown AND the extracted link list so the LLM/regex can see
+        # handles in the body and in footer links, not just the title/description.
+        kwargs["scrape_options"] = ScrapeOptions(formats=["markdown", "links"])
 
     try:
         data = fc.search(query, **kwargs)
@@ -68,12 +84,25 @@ def _search_live(query: str, *, limit: int, scrape: bool) -> list[WebSearchResul
     web = getattr(data, "web", None) or []
     results: list[WebSearchResult] = []
     for item in web:
+        # Two possible shapes: a scraped ``Document`` (markdown top-level, but
+        # url/title/description under ``.metadata``) or a flat ``SearchResultWeb``
+        # (url/title/description on the item, no markdown). Handle both.
+        meta = getattr(item, "metadata", None)
+        url = getattr(item, "url", "") or _meta_get(meta, "url")
+        title = getattr(item, "title", "") or _meta_get(meta, "title")
+        description = getattr(item, "description", "") or _meta_get(meta, "description")
+        markdown = getattr(item, "markdown", "") or ""
+        all_links = getattr(item, "links", None) or []
+        tg_links = list(
+            dict.fromkeys(l for l in all_links if isinstance(l, str) and "t.me/" in l.lower())
+        )
         results.append(
             WebSearchResult(
-                url=getattr(item, "url", "") or "",
-                title=getattr(item, "title", "") or "",
-                description=getattr(item, "description", "") or "",
-                markdown=getattr(item, "markdown", "") or "",
+                url=url,
+                title=title,
+                description=description,
+                markdown=markdown,
+                links=tg_links,
             )
         )
     return results
@@ -120,6 +149,14 @@ def search(
     """
     limit = limit or settings.search_limit
     mode = (mode or settings.firecrawl_mode).strip().lower()
+    
+    print("query=================",query)
+    print("limit=================",limit)
+    print("scrap=================",scrape)
+    print("mode=================",mode) 
+    return 
+    
+    
     if mode == "fixture":
         return _search_fixture(query, limit=limit)
     return _search_live(query, limit=limit, scrape=scrape)

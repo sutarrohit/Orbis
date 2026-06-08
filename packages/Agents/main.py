@@ -10,9 +10,14 @@ from scalar_fastapi import get_scalar_api_reference
 
 from agents.lib.auth import require_service_auth
 from agents.lib.config import settings
+from agents.lib.console import ensure_utf8_stdio
 from agents.scheduler import shutdown_scheduler, start_scheduler
 from errors.errors import PredictionAPIError
 from routers import accounts, agents, scheduler as scheduler_router
+
+# Make stdout/stderr UTF-8 so scraped content / community names with em dashes,
+# arrows, or emoji can't crash request handlers on a cp1252 (Windows) console.
+ensure_utf8_stdio()
 
 
 @asynccontextmanager
