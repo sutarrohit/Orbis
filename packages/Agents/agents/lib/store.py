@@ -66,6 +66,18 @@ class CommunityStore:
             cur.execute(f"SELECT {self._COLUMNS} FROM community")
             return [self._row_to_record(r) for r in cur.fetchall()]
 
+    def existing_handles(self, brand_id: str) -> set[str]:
+        """Every community handle already stored for the brand (any status).
+
+        Used by Search to skip communities it has already discovered — Firecrawl
+        returns the same pages on repeat runs, so we avoid re-verifying and
+        re-reporting handles we already have.
+        """
+        bid = db.resolve_brand_id(brand_id)
+        with db.cursor() as cur:
+            cur.execute('SELECT handle FROM community WHERE "brandId" = %s', (bid,))
+            return {r[0] for r in cur.fetchall()}
+
     def for_brand(self, brand_id: str) -> list[CommunityRecord]:
         bid = db.resolve_brand_id(brand_id)
         with db.cursor() as cur:

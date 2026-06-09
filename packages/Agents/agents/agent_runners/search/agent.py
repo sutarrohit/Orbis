@@ -219,6 +219,23 @@ def run_search(
                 },
             )
 
+        # ── 3a. Drop already-stored communities ──────────────────────────────
+        # Firecrawl returns the same listicles on repeat runs, so skip handles we
+        # already have for this brand: don't re-verify them (each verification is
+        # a Firecrawl scrape) or re-report them. Only NEW handles proceed.
+        store = CommunityStore()
+        known = store.existing_handles(brand_id)
+        if known:
+            before = len(candidates)
+            candidates = {h: v for h, v in candidates.items() if h not in known}
+            skipped_known = before - len(candidates)
+            if skipped_known:
+                logger.info(
+                    "Search skipping %d already-stored communit(ies) for brand=%s.",
+                    skipped_known,
+                    brand_id,
+                )
+
         # ── 3b. VERIFY: open each public channel's t.me/s preview and keep ────
         # only those whose REAL content matches the requirement keywords. Invite
         # / private handles (no preview) bypass verification and are kept on
@@ -293,7 +310,6 @@ def run_search(
         print("record=====================,records",records)
 
         # ── Persist (idempotent upsert by (brand_id, handle)) ────────────────
-        store = CommunityStore()
         inserted, duplicates = store.upsert_many(records)
 
         guardrails.record_activity(
