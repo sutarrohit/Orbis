@@ -40,6 +40,9 @@ export function CommunityRow({ community, accounts }: { community: Community; ac
       <TableCell>
         <div className='font-medium'>{community.name || community.handle}</div>
         <div className='text-xs text-muted-foreground'>{community.handle}</div>
+        {community.note ? (
+          <div className='text-xs italic text-muted-foreground'>{community.note}</div>
+        ) : null}
       </TableCell>
       <TableCell className='text-muted-foreground'>{community.nicheRelevance}</TableCell>
       <TableCell>

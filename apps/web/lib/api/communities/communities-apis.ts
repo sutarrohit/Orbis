@@ -13,6 +13,7 @@ export interface Community {
   foundVia: string;
   sourceUrl: string;
   groupChatId: string;
+  note: string;
   assignedAccountId: string | null;
   assignedAccount: { id: string; handle: string; displayName: string | null } | null;
   createdAt: string;

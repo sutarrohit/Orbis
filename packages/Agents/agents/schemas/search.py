@@ -107,6 +107,11 @@ class CommunityRecord(BaseModel):
     source_url: str = Field(
         default="", description="The web page the handle was found on."
     )
+    note: str = Field(
+        default="",
+        description="Gateway note, e.g. 'channel — members admin-only' or "
+        "'scraped N members'.",
+    )
     members: str = Field(
         default="",
         description="Member/subscriber count parsed from the channel preview, if any.",

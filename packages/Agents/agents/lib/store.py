@@ -43,7 +43,7 @@ class CommunityStore:
 
     _COLUMNS = (
         '"brandId", handle, name, "nicheRelevance", status, source, '
-        '"foundVia", "sourceUrl", "createdAt"'
+        '"foundVia", "sourceUrl", note, "createdAt"'
     )
 
     @staticmethod
@@ -57,7 +57,8 @@ class CommunityStore:
             source=r[5],
             found_via=r[6],
             source_url=r[7],
-            created_at=_iso(r[8]),
+            note=r[8] or "",
+            created_at=_iso(r[9]),
         )
 
     def all(self) -> list[CommunityRecord]:
@@ -151,6 +152,15 @@ class CommunityStore:
                 'UPDATE community SET status = %s::"CommunityStatus", '
                 '"updatedAt" = now() WHERE id = %s',
                 ("rejected", community_id),
+            )
+
+    def set_note(self, community_id: str, note: str) -> None:
+        """Record a short gateway note on the community (e.g. scrape outcome:
+        a broadcast channel, members hidden, or how many were scraped)."""
+        with db.cursor() as cur:
+            cur.execute(
+                'UPDATE community SET note = %s, "updatedAt" = now() WHERE id = %s',
+                (note, community_id),
             )
 
 

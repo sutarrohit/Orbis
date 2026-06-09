@@ -18,7 +18,8 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from pyrogram.errors import FloodWait
+from pyrogram.enums import ChatType
+from pyrogram.errors import ChatAdminRequired, FloodWait
 
 from agents.constants.gateway import (
     JOIN_BATCH,
@@ -86,14 +87,41 @@ async def join_and_scrape_once(clients, *, pace: float = 0.0) -> dict:
         await asyncio.to_thread(communities.mark_joined, c["id"], group_chat_id)
         joined += 1
 
-        try:
-            members = await _scrape_members(client, chat.id, c["brand_id"], group_chat_id)
-        except Exception as exc:
-            logger.warning("Scrape of %s failed: %s", group_chat_id, exc)
-            members = []
-        if members:
-            ins, _dup = await asyncio.to_thread(GroupMemberStore().upsert_many, members)
-            scraped += ins
+        # Broadcast channels never expose their subscriber list to non-admins
+        # (channels.GetParticipants → CHAT_ADMIN_REQUIRED), so skip the scrape
+        # outright. Supergroups usually have visible members, but some hide them
+        # (also CHAT_ADMIN_REQUIRED) — that case is handled in the except below.
+        if chat.type == ChatType.CHANNEL:
+            logger.info(
+                "Joined channel %s (%s) — members are admin-only, skipping scrape.",
+                c["handle"],
+                group_chat_id,
+            )
+            await asyncio.to_thread(
+                communities.set_note, c["id"], "channel — members admin-only (monitor only)"
+            )
+        else:
+            note = ""
+            try:
+                members = await _scrape_members(client, chat.id, c["brand_id"], group_chat_id)
+            except ChatAdminRequired:
+                logger.info(
+                    "Members of %s (%s) are admin-only / hidden — skipping scrape.",
+                    c["handle"],
+                    group_chat_id,
+                )
+                members = []
+                note = "members hidden (admin-only)"
+            except Exception as exc:
+                logger.warning("Scrape of %s failed: %s", group_chat_id, exc)
+                members = []
+                note = "member scrape failed"
+            if members:
+                ins, _dup = await asyncio.to_thread(GroupMemberStore().upsert_many, members)
+                scraped += ins
+                note = f"scraped {ins} members"
+            if note:
+                await asyncio.to_thread(communities.set_note, c["id"], note)
 
         if pace:
             await asyncio.sleep(pace)
