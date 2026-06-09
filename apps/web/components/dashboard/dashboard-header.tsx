@@ -27,8 +27,8 @@ export function DashboardHeader() {
   return (
     <div className='flex md:flex-row flex-col items-center justify-between rounded-xl border p-4 gap-4 bg-secondary'>
       <div className='flex md:flex-row flex-col items-center gap-4'>
-        <div className='flex size-12 items-center justify-center rounded-lg bg-primary text-primary-foreground'>
-          <BotIcon className='size-6' />
+        <div className='flex size-10 items-center justify-center rounded-lg bg-blue-500/40'>
+          <BotIcon className='size-5' />
         </div>
         <div>
           <h1 className='text-xl font-semibold'>{brand?.name ?? "Orbis"}</h1>

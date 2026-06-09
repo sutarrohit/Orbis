@@ -127,4 +127,21 @@
   html {
     @apply font-mono;
   }
+  /* Every interactive control gets a pointer cursor (buttons, links, and the
+     radix triggers/items: Select, Dropdown, Tabs, Switch, Checkbox, etc.).
+     Disabled buttons keep the default cursor. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="menuitem"],
+  [role="menuitemcheckbox"],
+  [role="menuitemradio"],
+  [role="option"],
+  [role="tab"],
+  [role="switch"],
+  [role="checkbox"],
+  a[href],
+  label[for],
+  summary {
+    cursor: pointer;
+  }
 }

@@ -107,7 +107,7 @@ export function NavUser() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem disabled={true}>
                 <Sparkles />
                 Upgrade to Pro
               </DropdownMenuItem>
@@ -129,6 +129,7 @@ export function NavUser() {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem
+              className='cursor-pointer'
               onSelect={(e) => {
                 // Keep the menu open so the user can toggle repeatedly.
                 e.preventDefault();
@@ -140,6 +141,7 @@ export function NavUser() {
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
+              className='cursor-pointer'
               disabled={loggingOut}
               onSelect={(e) => {
                 e.preventDefault();

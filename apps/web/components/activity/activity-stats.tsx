@@ -65,16 +65,16 @@ const STAT_CARDS: {
 
 export function ActivityStats({ data }: { data: Activity[] }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+    <div className='grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6'>
       {STAT_CARDS.map((stat) => (
-        <Card key={stat.key} size="sm">
-          <CardContent className="flex items-center gap-3 p-3">
+        <Card key={stat.key} size='sm'>
+          <CardContent className='flex items-center gap-3'>
             <div className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", stat.iconBg)}>
               <stat.icon className={cn("size-4", stat.iconColor)} />
             </div>
-            <div className="min-w-0">
-              <p className="truncate text-xs text-muted-foreground">{stat.label}</p>
-              <p className="text-lg font-semibold leading-tight">{stat.compute(data)}</p>
+            <div className='min-w-0'>
+              <p className='truncate text-xs text-muted-foreground'>{stat.label}</p>
+              <p className='text-lg font-semibold leading-tight'>{stat.compute(data)}</p>
             </div>
           </CardContent>
         </Card>

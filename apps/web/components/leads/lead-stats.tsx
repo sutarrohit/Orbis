@@ -53,14 +53,14 @@ const STAT_CARDS = [
 
 export function LeadStats({ data }: { data: Lead[] }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className='grid grid-cols-2 gap-3 sm:grid-cols-4'>
       {STAT_CARDS.map((stat) => (
-        <Card key={stat.key} size="sm" className={cn(stat.cardClass)}>
-          <CardContent className="flex items-center gap-3 p-3">
+        <Card key={stat.key} size='sm' className={cn(stat.cardClass)}>
+          <CardContent className='flex items-center gap-3'>
             <div className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", stat.iconBg)}>
               <stat.icon className={cn("size-4", stat.iconColor)} />
             </div>
-            <div className="min-w-0">
+            <div className='min-w-0'>
               <p className={cn("truncate text-xs", stat.labelClass)}>{stat.label}</p>
               <p className={cn("text-lg font-semibold leading-tight", stat.valueClass)}>{stat.compute(data)}</p>
             </div>

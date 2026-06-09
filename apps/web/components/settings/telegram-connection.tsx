@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 export function TelegramConnection() {
   return (
     <Card>
-      <CardContent className='flex items-center gap-4 p-4'>
+      <CardContent className='flex items-center gap-4'>
         <div className='flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/40'>
           <Send className='size-5 text-blue-600 dark:text-blue-400' />
         </div>

@@ -69,7 +69,9 @@ export default function UsagePage() {
                   data.byAgent.map((row) => (
                     <TableRow key={row.agent}>
                       <TableCell className='font-medium capitalize'>{row.agent}</TableCell>
-                      <TableCell className='text-right text-muted-foreground'>{formatNumber(row.promptTokens)}</TableCell>
+                      <TableCell className='text-right text-muted-foreground'>
+                        {formatNumber(row.promptTokens)}
+                      </TableCell>
                       <TableCell className='text-right text-muted-foreground'>
                         {formatNumber(row.completionTokens)}
                       </TableCell>

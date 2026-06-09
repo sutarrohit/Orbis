@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <Card>
+    <Card size='sm'>
       <CardHeader>
         <CardTitle className='text-xs font-normal text-muted-foreground'>{label}</CardTitle>
       </CardHeader>

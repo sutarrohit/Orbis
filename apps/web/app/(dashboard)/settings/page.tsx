@@ -16,7 +16,7 @@ export default function SettingsPage() {
   const { data, isPending, isError, refetch } = useQuery(getBrandQueryOptions());
 
   return (
-    <main className='mx-auto w-full max-w-4xl flex-1 p-4'>
+    <main className='mx-auto w-full max-w-5xl flex-1 p-4'>
       <h1 className='mb-4 text-lg font-medium'>Settings</h1>
       {isPending ? (
         <LoadingState />

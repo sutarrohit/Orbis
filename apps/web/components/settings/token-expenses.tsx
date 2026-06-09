@@ -103,7 +103,7 @@ export function TokenExpenses() {
             </Card>
 
             <Card size='sm'>
-              <CardContent className='flex items-center gap-3 p-3'>
+              <CardContent className='flex items-center gap-3'>
                 <div className='flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/40'>
                   <Hash className='size-4 text-blue-600 dark:text-blue-400' />
                 </div>
@@ -116,7 +116,7 @@ export function TokenExpenses() {
             </Card>
 
             <Card size='sm'>
-              <CardContent className='flex items-center gap-3 p-3'>
+              <CardContent className='flex items-center gap-3'>
                 <div className='flex size-9 shrink-0 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/40'>
                   <LetterText className='size-4 text-orange-600 dark:text-orange-400' />
                 </div>
@@ -129,15 +129,13 @@ export function TokenExpenses() {
             </Card>
 
             <Card size='sm'>
-              <CardContent className='flex items-center gap-3 p-3'>
+              <CardContent className='flex items-center gap-3'>
                 <div className='flex size-9 shrink-0 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/40'>
                   <MessageSquareText className='size-4 text-green-600 dark:text-green-400' />
                 </div>
                 <div className='min-w-0'>
                   <p className='truncate text-xs text-muted-foreground'>Output Tokens</p>
-                  <p className='text-lg font-semibold leading-tight'>
-                    {formatTokens(totals?.completionTokens ?? 0)}
-                  </p>
+                  <p className='text-lg font-semibold leading-tight'>{formatTokens(totals?.completionTokens ?? 0)}</p>
                   <p className='text-[0.6rem] text-muted-foreground'>Responses generated</p>
                 </div>
               </CardContent>
