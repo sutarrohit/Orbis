@@ -139,6 +139,19 @@ class Settings:
     search_min_relevance: int = field(
         default_factory=lambda: _env_int("SEARCH_MIN_RELEVANCE", 30)
     )
+    # Verify public channels by scraping their t.me/s/<handle> preview and
+    # keyword-matching the real channel content (precision filter).
+    search_verify: bool = field(
+        default_factory=lambda: _env_bool("SEARCH_VERIFY", True)
+    )
+    # Cap how many channel previews to scrape per run (Firecrawl credit control).
+    search_max_verify: int = field(
+        default_factory=lambda: _env_int("SEARCH_MAX_VERIFY", 25)
+    )
+    # Min requirement-keyword hits in a channel's preview to qualify as a match.
+    search_min_keyword_match: int = field(
+        default_factory=lambda: _env_int("SEARCH_MIN_KEYWORD_MATCH", 2)
+    )
 
     # ── Research agent knobs ─────────────────────────────────────────────────
     research_use_llm: bool = field(

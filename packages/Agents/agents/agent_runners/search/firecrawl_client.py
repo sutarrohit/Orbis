@@ -108,6 +108,27 @@ def _search_live(query: str, *, limit: int, scrape: bool) -> list[WebSearchResul
     return results
 
 
+def scrape_preview(username: str) -> str:
+    """Scrape a public Telegram channel's web preview (``t.me/s/<username>``).
+
+    Returns the page markdown, or ``""`` when the channel is private, dead, or
+    otherwise unscrapable — so callers can simply drop empty results. Private
+    groups and invite links (``t.me/+hash``) have no preview and return ``""``.
+    """
+    if not settings.firecrawl_api_key:
+        return ""
+
+    from firecrawl import Firecrawl
+
+    fc = Firecrawl(api_key=settings.firecrawl_api_key)
+    try:
+        res = fc.scrape(f"https://t.me/s/{username}", formats=["markdown"])
+    except Exception as exc:  # private/nonexistent/transport error
+        logger.warning("Preview scrape failed for @%s: %s", username, exc)
+        return ""
+    return getattr(res, "markdown", "") or ""
+
+
 def _search_fixture(query: str, *, limit: int) -> list[WebSearchResult]:
     """Return canned results from ``agents/fixtures/search_sample.json``.
 
@@ -150,13 +171,13 @@ def search(
     limit = limit or settings.search_limit
     mode = (mode or settings.firecrawl_mode).strip().lower()
     
-    print("query=================",query)
-    print("limit=================",limit)
-    print("scrap=================",scrape)
-    print("mode=================",mode) 
-    return 
-    
-    
+
     if mode == "fixture":
         return _search_fixture(query, limit=limit)
     return _search_live(query, limit=limit, scrape=scrape)
+
+
+if __name__  == "__main__":
+     result = search("crypto trading signals telegram channel")
+     print("Result================>",result)
+    

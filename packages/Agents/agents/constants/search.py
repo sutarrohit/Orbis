@@ -26,6 +26,39 @@ TME_RE = re.compile(
 # an email address — so the char before '@' must not be alphanumeric/._%+-.
 AT_RE = re.compile(r"(?<![\w.%+\-])@([A-Za-z][A-Za-z0-9_]{3,31})\b")
 
+# tg://resolve?domain=<username> deep-links — how some pages render a Telegram
+# handle (e.g. result 1 in a search). The /s/ web preview can't see these unless
+# we recover the username first.
+TG_RESOLVE_RE = re.compile(
+    r"tg://resolve\?domain=([A-Za-z][A-Za-z0-9_]{3,31})", re.IGNORECASE
+)
+
+# "12,345 members / subscribers / followers" as shown on a t.me/s preview page.
+MEMBERS_RE = re.compile(
+    r"([\d ,\.]+)\s*(?:members|subscribers|followers)", re.IGNORECASE
+)
+
+# Generic words to drop when turning the niche/queries into match keywords.
+_KEYWORD_STOPWORDS = {
+    "best", "top", "the", "and", "for", "list", "free", "with", "new",
+    "telegram", "group", "groups", "channel", "channels", "community",
+    "communities", "join", "online",
+}
+
+
+def keywords_from(niche: str, queries: list[str]) -> list[str]:
+    """Derive lowercased match keywords from the brand niche + search queries.
+
+    Used by the verification step to score a channel's real preview content.
+    Drops generic scaffolding words so only the meaningful terms remain.
+    """
+    text = " ".join([niche, *queries]).lower()
+    out: list[str] = []
+    for word in re.findall(r"[a-z0-9]{3,}", text):
+        if word not in _KEYWORD_STOPWORDS and word not in out:
+            out.append(word)
+    return out
+
 # Usernames that are Telegram system paths, not communities.
 RESERVED_USERNAMES = {
     "share",
