@@ -22,7 +22,9 @@ from pyrogram.handlers import MessageHandler
 from agents.agent_runners.sales import decide_reply as sales_decide
 from agents.agent_runners.talk import decide_reply as talk_decide
 from agents.lib import db
-from agents.lib.store import ConversationStore, LeadStore, ProfileStore
+from agents.lib.store import (ConversationStore, GroupMemberStore, LeadStore,
+                              ProfileStore)
+from agents.schemas.research import GroupMemberRecord
 from agents.schemas.sales import DmMessage, SalesContext
 from agents.schemas.talk import GroupMessage, TalkContext
 
@@ -74,6 +76,29 @@ def _brand_niche(brand_id: str) -> str:
         cur.execute('SELECT niche FROM brand WHERE id = %s', (bid,))
         row = cur.fetchone()
     return row[0] if row else ""
+
+
+async def _capture_member(brand_id: str, sender, group_chat_id: str) -> None:
+    """Add an active poster to the outbound prospect pool (``group_member``).
+
+    This is how we build a member pool for groups/channels whose roster we can't
+    scrape (admin-only / hidden members): everyone who *posts* is a reachable,
+    engaged member. Idempotent on ``(brand, user, group)``; only users with a
+    username are captured (Research needs it to reach them).
+    """
+    if not sender or getattr(sender, "is_bot", False) or not sender.username:
+        return
+    await asyncio.to_thread(
+        GroupMemberStore().upsert_many,
+        [
+            GroupMemberRecord(
+                brand_id=brand_id,
+                user_id=str(sender.id),
+                username=sender.username,
+                group_chat_id=group_chat_id,
+            )
+        ],
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -155,6 +180,9 @@ async def _handle_group(client, message, brand_id: str, account_id: str) -> None
         str(message.chat.id),
         message.text,
     )
+    # Active poster → outbound prospect pool (works where the roster can't be
+    # scraped). Idempotent, so reposts from the same member are a no-op.
+    await _capture_member(brand_id, sender, str(message.chat.id))
     if decision.replied and decision.reply.message:
         # Private DM to the sender — NOT a public reply in the group.
         await client.send_message(sender.id, decision.reply.message)

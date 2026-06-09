@@ -14,6 +14,7 @@ export interface Community {
   sourceUrl: string;
   groupChatId: string;
   note: string;
+  pendingLeave: boolean;
   assignedAccountId: string | null;
   assignedAccount: { id: string; handle: string; displayName: string | null } | null;
   createdAt: string;
@@ -53,4 +54,8 @@ export function createCommunity(input: CreateCommunityInput): Promise<Community>
 
 export function updateCommunity(id: string, input: UpdateCommunityInput): Promise<Community> {
   return request(`/communities/${id}`, { method: "PUT", body: JSON.stringify(input) });
+}
+
+export function deleteCommunity(id: string): Promise<void> {
+  return request(`/communities/${id}`, { method: "DELETE" });
 }

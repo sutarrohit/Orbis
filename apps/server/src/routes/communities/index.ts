@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { CONFLICT, CREATED, NOT_FOUND, OK } from "stoker/http-status-codes";
+import { CONFLICT, CREATED, NO_CONTENT, NOT_FOUND, OK } from "stoker/http-status-codes";
 import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers";
 import { createErrorSchema, IdUUIDParamsSchema } from "stoker/openapi/schemas";
 import { createRouter } from "../../lib/create-app.js";
@@ -60,6 +60,19 @@ const updateCommunity = createRoute({
   }
 });
 
+const deleteCommunity = createRoute({
+  method: "delete",
+  path: "/communities/{id}",
+  tags,
+  security: protectedSecurity,
+  summary: "Delete a community (leaves the chat, removes members & conversations)",
+  request: { params: IdUUIDParamsSchema },
+  responses: {
+    [NO_CONTENT]: { description: "Community deleted" },
+    [NOT_FOUND]: jsonContent(ErrorSchema, "Community not found")
+  }
+});
+
 const router = createRouter();
 router.use("*", requireAuth, requireBrand);
 
@@ -81,4 +94,9 @@ export const communitiesRouter = router
       c.req.valid("json")
     );
     return c.json(community, OK);
+  })
+  .openapi(deleteCommunity, async (c) => {
+    const { id } = c.req.valid("param");
+    await communitiesService.deleteCommunity(c.get("brand").id, id);
+    return c.body(null, NO_CONTENT);
   });

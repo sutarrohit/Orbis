@@ -253,6 +253,9 @@ model Community {
   /// Gateway note about the community, e.g. why members couldn't be scraped
   /// ("channel — members admin-only") or "scraped N members".
   note              String          @default("")
+  /// Marked for removal: the gateway leaves the Telegram chat, then the row is
+  /// hard-deleted. Hidden from the dashboard list while pending.
+  pendingLeave      Boolean         @default(false)
   assignedAccountId String?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt

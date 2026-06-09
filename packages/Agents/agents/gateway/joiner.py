@@ -54,6 +54,34 @@ async def _scrape_members(client, chat_id, brand_id: str, group_chat_id: str) ->
     return members
 
 
+async def _join_linked_discussion(client, chat):
+    """Join a broadcast channel's linked discussion group (where comments land).
+
+    A broadcast channel's subscriber list is admin-only, but its linked group is
+    a normal supergroup we CAN read — so joining it lets us scrape its roster
+    (if visible) and capture commenters via the listener. Returns the linked
+    group's chat id, or ``None`` if there isn't one / we couldn't join.
+    """
+    linked = getattr(chat, "linked_chat", None)
+    if linked is None:
+        # join_chat may return a partial Chat; fetch full info for linked_chat.
+        try:
+            full = await client.get_chat(chat.id)
+            linked = getattr(full, "linked_chat", None)
+        except Exception as exc:
+            logger.info("Could not resolve linked chat for %s: %s", chat.id, exc)
+            return None
+    if linked is None:
+        return None
+    try:
+        joined = await client.join_chat(linked.username or linked.id)
+        logger.info("Joined linked discussion group %s of channel %s.", joined.id, chat.id)
+        return joined.id
+    except Exception as exc:
+        logger.info("Could not join linked discussion of %s: %s", chat.id, exc)
+        return None
+
+
 async def join_and_scrape_once(clients, *, pace: float = 0.0) -> dict:
     """One pass: join each assigned pending community and scrape its members."""
     communities = CommunityStore()
@@ -92,14 +120,32 @@ async def join_and_scrape_once(clients, *, pace: float = 0.0) -> dict:
         # outright. Supergroups usually have visible members, but some hide them
         # (also CHAT_ADMIN_REQUIRED) — that case is handled in the except below.
         if chat.type == ChatType.CHANNEL:
-            logger.info(
-                "Joined channel %s (%s) — members are admin-only, skipping scrape.",
-                c["handle"],
-                group_chat_id,
-            )
-            await asyncio.to_thread(
-                communities.set_note, c["id"], "channel — members admin-only (monitor only)"
-            )
+            # A broadcast channel's roster is admin-only. Reach its audience via
+            # the linked discussion group instead: join it, scrape its roster if
+            # visible, otherwise the listener captures whoever comments there.
+            linked_id = await _join_linked_discussion(client, chat)
+            if linked_id is None:
+                note = "channel — members admin-only (monitor only)"
+            else:
+                try:
+                    members = await _scrape_members(
+                        client, linked_id, c["brand_id"], str(linked_id)
+                    )
+                except ChatAdminRequired:
+                    members = []
+                except Exception as exc:
+                    logger.warning("Linked-group scrape of %s failed: %s", linked_id, exc)
+                    members = []
+                if members:
+                    ins, _dup = await asyncio.to_thread(
+                        GroupMemberStore().upsert_many, members
+                    )
+                    scraped += ins
+                    note = f"channel — scraped {ins} from linked discussion group"
+                else:
+                    note = "channel — capturing members via linked discussion group"
+            logger.info("Joined channel %s (%s) — %s", c["handle"], group_chat_id, note)
+            await asyncio.to_thread(communities.set_note, c["id"], note)
         else:
             note = ""
             try:
@@ -135,13 +181,40 @@ async def join_and_scrape_once(clients, *, pace: float = 0.0) -> dict:
     }
 
 
+async def leave_pending_once(clients) -> int:
+    """Process communities the dashboard flagged for removal: leave the Telegram
+    chat (if joined and the account is connected), then hard-delete the row.
+
+    Members + conversations were already purged by the API on delete; this is
+    the Telegram-side cleanup the API can't do (the gateway owns the clients).
+    """
+    communities = CommunityStore()
+    pending = await asyncio.to_thread(communities.pending_leave)
+    left = 0
+    for c in pending:
+        gid = c["group_chat_id"]
+        entry = clients.get(c["assigned_account_id"]) if c["assigned_account_id"] else None
+        if gid and entry is not None:
+            try:
+                await entry["client"].leave_chat(int(gid))
+                logger.info("Left chat %s (%s).", gid, c["handle"])
+            except Exception as exc:  # already left / not found / transient — drop anyway
+                logger.info("Leave chat %s failed (removing anyway): %s", gid, exc)
+        await asyncio.to_thread(communities.delete, c["id"])
+        left += 1
+    return left
+
+
 async def run_joiner(clients, *, stop_event: asyncio.Event | None = None) -> None:
-    """Poll-join-scrape forever (until ``stop_event`` is set)."""
+    """Poll-join-scrape (and process removals) forever (until ``stop_event``)."""
     while stop_event is None or not stop_event.is_set():
         try:
             result = await join_and_scrape_once(clients, pace=JOIN_PACE_SECONDS)
             if result["considered"]:
                 logger.info("joiner pass: %s", result)
+            removed = await leave_pending_once(clients)
+            if removed:
+                logger.info("leaver pass: removed %d community(ies).", removed)
         except Exception as exc:  # never let the loop die
             logger.exception("joiner loop error: %s", exc)
         await asyncio.sleep(JOIN_POLL_INTERVAL)

@@ -2,13 +2,30 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Trash2Icon } from "lucide-react";
 
 import type { Community } from "@/lib/api/communities/communities-apis";
-import { communityKeys, updateCommunityMutationOptions } from "@/lib/api/communities/communities-queries";
+import {
+  communityKeys,
+  deleteCommunityMutationOptions,
+  updateCommunityMutationOptions
+} from "@/lib/api/communities/communities-queries";
 import type { Account } from "@/lib/api/accounts/accounts-apis";
 import type { CommunityStatus } from "@/lib/api/enums";
 import { GroupMembersDialog } from "@/components/communities/group-members-dialog";
 import { StatusBadge } from "@/components/data/status-badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TableCell, TableRow } from "@/components/ui/table";
 
@@ -35,6 +52,17 @@ export function CommunityRow({ community, accounts }: { community: Community; ac
     onError: (error) => toast.error(error instanceof Error ? error.message : "Update failed")
   });
 
+  const remove = useMutation({
+    ...deleteCommunityMutationOptions(),
+    onSuccess: () => {
+      invalidate();
+      toast.success("Community removed — leaving the chat & clearing its data");
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Delete failed")
+  });
+
+  const busy = isPending || remove.isPending;
+
   return (
     <TableRow>
       <TableCell>
@@ -54,7 +82,7 @@ export function CommunityRow({ community, accounts }: { community: Community; ac
           onValueChange={(value) =>
             mutate({ id: community.id, input: { assignedAccountId: value === UNASSIGNED ? null : value } })
           }
-          disabled={isPending}
+          disabled={busy}
         >
           <SelectTrigger size='sm' className='w-40'>
             <SelectValue placeholder='Unassigned' />
@@ -75,7 +103,7 @@ export function CommunityRow({ community, accounts }: { community: Community; ac
           <Select
             value={community.status}
             onValueChange={(value) => mutate({ id: community.id, input: { status: value as CommunityStatus } })}
-            disabled={isPending}
+            disabled={busy}
           >
             <SelectTrigger size='sm' className='w-36'>
               <SelectValue />
@@ -88,6 +116,34 @@ export function CommunityRow({ community, accounts }: { community: Community; ac
               ))}
             </SelectContent>
           </Select>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant='ghost' size='icon' className='text-muted-foreground hover:text-destructive' disabled={busy}>
+                <Trash2Icon className='size-4' />
+                <span className='sr-only'>Delete community</span>
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete {community.name || community.handle}?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  The assigned account will leave the Telegram chat, and this community&apos;s
+                  scraped members and conversations will be removed. Leads already generated are
+                  kept. This can&apos;t be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => remove.mutate(community.id)}
+                  className='bg-destructive text-white hover:bg-destructive/90'
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </TableCell>
     </TableRow>

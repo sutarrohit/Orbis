@@ -163,6 +163,33 @@ class CommunityStore:
                 (note, community_id),
             )
 
+    def pending_leave(self, limit: int = 10) -> list[dict]:
+        """Communities the dashboard flagged for removal (``pendingLeave=true``).
+
+        Returns dicts: ``id``, ``handle``, ``group_chat_id``, ``assigned_account_id``.
+        The gateway leaves the chat (if joined) and then hard-deletes the row.
+        """
+        with db.cursor() as cur:
+            cur.execute(
+                'SELECT id, handle, "groupChatId", "assignedAccountId" FROM community '
+                'WHERE "pendingLeave" = true LIMIT %s',
+                (limit,),
+            )
+            return [
+                {
+                    "id": r[0],
+                    "handle": r[1],
+                    "group_chat_id": r[2],
+                    "assigned_account_id": r[3],
+                }
+                for r in cur.fetchall()
+            ]
+
+    def delete(self, community_id: str) -> None:
+        """Hard-delete a community row (after the gateway has left its chat)."""
+        with db.cursor() as cur:
+            cur.execute("DELETE FROM community WHERE id = %s", (community_id,))
+
 
 class LeadStore:
     """Repository for flagged leads (``lead`` table, key ``(brandId, userId)``).
