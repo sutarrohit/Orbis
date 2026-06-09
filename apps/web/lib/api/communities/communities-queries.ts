@@ -1,6 +1,7 @@
 import { mutationOptions, queryOptions } from "@tanstack/react-query";
 import {
   createCommunity,
+  deleteCommunity,
   listCommunities,
   updateCommunity,
   type ListCommunitiesParams,
@@ -30,5 +31,12 @@ export function updateCommunityMutationOptions() {
   return mutationOptions({
     mutationKey: ["communities", "update"],
     mutationFn: ({ id, input }: { id: string; input: UpdateCommunityInput }) => updateCommunity(id, input)
+  });
+}
+
+export function deleteCommunityMutationOptions() {
+  return mutationOptions({
+    mutationKey: ["communities", "delete"],
+    mutationFn: deleteCommunity
   });
 }

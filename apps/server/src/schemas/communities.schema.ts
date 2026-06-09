@@ -22,6 +22,8 @@ export const CommunitySchema = z
     foundVia: z.string(),
     sourceUrl: z.string(),
     groupChatId: z.string(),
+    note: z.string(),
+    pendingLeave: z.boolean(),
     assignedAccountId: z.string().uuid().nullable(),
     assignedAccount: AssignedAccountSchema,
     createdAt: dateField(),

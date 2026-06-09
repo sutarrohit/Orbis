@@ -6,10 +6,12 @@ import type { CreateCommunityInput, UpdateCommunityInput } from "../schemas/comm
 
 const ACCOUNT_SELECT = { id: true, handle: true, displayName: true } as const;
 
-/** The brand's communities (optionally filtered by status), newest first. */
+/** The brand's communities (optionally filtered by status), newest first.
+ *  Communities marked for removal (pendingLeave) are hidden — the gateway is
+ *  still leaving the chat and will hard-delete them shortly. */
 export function listCommunities(brandId: string, status?: CommunityStatus) {
   return prisma.community.findMany({
-    where: { brandId, ...(status ? { status } : {}) },
+    where: { brandId, pendingLeave: false, ...(status ? { status } : {}) },
     orderBy: { createdAt: "desc" },
     include: { assignedAccount: { select: ACCOUNT_SELECT } }
   });
@@ -45,5 +47,32 @@ export async function updateCommunity(brandId: string, id: string, data: UpdateC
     where: { id },
     data,
     include: { assignedAccount: { select: ACCOUNT_SELECT } }
+  });
+}
+
+/**
+ * Delete a community and its scraped members + conversations (leads are kept).
+ * If it was joined (has a Telegram chat), flag it `pendingLeave` so the gateway
+ * leaves the chat and then hard-deletes the row; otherwise delete it outright.
+ * Ownership-checked (404 if missing).
+ */
+export async function deleteCommunity(brandId: string, id: string) {
+  const owned = await prisma.community.findFirst({ where: { id, brandId } });
+  if (!owned) throw new ApiError(NOT_FOUND, "COMMUNITY_NOT_FOUND", "Community not found");
+
+  await prisma.$transaction(async (tx) => {
+    // Purge the prospect/monitoring data tied to this chat (leads are kept).
+    if (owned.groupChatId) {
+      await tx.groupMember.deleteMany({ where: { brandId, groupChatId: owned.groupChatId } });
+      await tx.conversation.deleteMany({ where: { brandId, groupChatId: owned.groupChatId } });
+    }
+
+    if (owned.groupChatId) {
+      // Joined a real chat → let the gateway leave it, then hard-delete.
+      await tx.community.update({ where: { id }, data: { pendingLeave: true } });
+    } else {
+      // Never joined a chat → nothing to leave; remove immediately.
+      await tx.community.delete({ where: { id } });
+    }
   });
 }

@@ -142,8 +142,13 @@ def _save_learnings(brand_id: str, learnings: list[str]) -> int:
 
 
 def auto_assign_communities(brand_id: str) -> int:
-    """Round-robin assign joined-but-unassigned communities to active accounts,
-    capped at ``MAX_GROUPS_PER_ACCOUNT`` per account."""
+    """Round-robin assign discovered (``pending_join``) communities to active
+    accounts, capped at ``MAX_GROUPS_PER_ACCOUNT`` per account.
+
+    The gateway joiner only picks up communities that are ``pending_join`` AND
+    have an assigned account, so this assignment is what unblocks joining. The
+    assignment persists through the join (the joiner only flips status), so a
+    community keeps its account once joined."""
     bid = db.resolve_brand_id(brand_id)
     accounts = [aid for (aid, _ext) in SocialAccountStore().active_for_brand(brand_id)]
     if not accounts:
@@ -153,7 +158,7 @@ def auto_assign_communities(brand_id: str) -> int:
         cur.execute(
             'SELECT id FROM community WHERE "brandId" = %s '
             'AND status = %s::"CommunityStatus" AND "assignedAccountId" IS NULL',
-            (bid, "joined"),
+            (bid, "pending_join"),
         )
         unassigned = [r[0] for r in cur.fetchall()]
         cur.execute(
