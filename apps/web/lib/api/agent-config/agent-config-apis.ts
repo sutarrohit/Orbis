@@ -17,6 +17,7 @@ export interface AgentConfig {
   systemPrompt: string;
   knowledgeBase: string;
   maxResponseLength: number;
+  searchQueries: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -34,6 +35,7 @@ export interface UpsertAgentConfigInput {
   systemPrompt?: string;
   knowledgeBase?: string;
   maxResponseLength?: number;
+  searchQueries?: string[];
 }
 
 export function listAgentConfig(): Promise<AgentConfig[]> {

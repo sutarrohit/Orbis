@@ -56,6 +56,7 @@ type FormState = {
   systemPrompt: string;
   knowledgeBase: string;
   maxResponseLength: number;
+  searchQueries: string[];
 };
 
 export function AgentConfigForm({
@@ -78,6 +79,7 @@ export function AgentConfigForm({
     systemPrompt: config?.systemPrompt ?? "",
     knowledgeBase: config?.knowledgeBase ?? "",
     maxResponseLength: config?.maxResponseLength ?? 0,
+    searchQueries: config?.searchQueries ?? [],
   });
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
@@ -141,6 +143,26 @@ export function AgentConfigForm({
             </Select>
           </div>
         </div>
+
+        {agentType === "search" ? (
+          <div className="flex flex-col gap-2">
+            <Label>Search Queries</Label>
+            <ChipListEditor
+              values={form.searchQueries}
+              onChange={(v) => set("searchQueries", v)}
+              placeholder="e.g. best crypto trading Telegram groups"
+              addLabel={
+                <>
+                  <PlusIcon className="size-3" /> Add Query
+                </>
+              }
+            />
+            <span className="text-xs text-muted-foreground">
+              Web-search queries the Search agent runs. Leave empty to derive one
+              from the brand&apos;s niche.
+            </span>
+          </div>
+        ) : null}
 
         <div className="flex flex-col gap-2">
           <Label htmlFor={`${agentType}-persona-desc`}>

@@ -31,6 +31,7 @@ from agents.constants.search import (AT_RE, REGEX_DEFAULT_RELEVANCE,
                                      default_queries)
 from agents.lib import guardrails
 from agents.lib.config import settings
+from agents.lib.db import search_queries_for
 from agents.lib.llm import brain
 from agents.lib.store import CommunityStore
 from agents.prompts.search import render_search_prompt
@@ -122,7 +123,7 @@ def run_search(
     Safe to call manually or from the Leader: the ``is_running`` guard makes a
     concurrent second call a no-op.
     """
-    queries = queries or default_queries(niche)
+    queries = queries or search_queries_for(brand_id) or default_queries(niche)
     use_llm = settings.search_use_llm if use_llm is None else use_llm
     mode = (firecrawl_mode or settings.firecrawl_mode).strip().lower()
     
@@ -157,6 +158,7 @@ def run_search(
         results = [
             r for r in results if not (r.url in seen_urls or seen_urls.add(r.url))
         ]
+        print("results=================",results)
         logger.info(
             "Search gathered %d pages for brand=%s niche=%r",
             len(results),
