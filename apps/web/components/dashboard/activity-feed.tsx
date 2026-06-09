@@ -25,7 +25,7 @@ export function ActivityFeed() {
 
   return (
     <Card>
-      <CardContent className='flex flex-col gap-3 p-4'>
+      <CardContent className='flex flex-col gap-3'>
         <h2 className='text-lg font-semibold'>Agent Activity Feed</h2>
         {isPending ? (
           <div className='flex flex-col gap-3'>

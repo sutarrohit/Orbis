@@ -37,7 +37,7 @@ export function LeaderGoals() {
 
   return (
     <Card>
-      <CardContent className='flex flex-col gap-3 p-4'>
+      <CardContent className='flex flex-col gap-3'>
         <div className='flex items-center gap-2'>
           <TargetIcon className='size-5' />
           <h2 className='text-lg font-semibold'>Leader Goals</h2>

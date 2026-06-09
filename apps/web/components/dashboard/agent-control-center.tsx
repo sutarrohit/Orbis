@@ -12,44 +12,68 @@ import {
   schedulerKeys
 } from "@/lib/api/agents/agents-queries";
 import type { AgentState } from "@/lib/api/agent-state/agent-state-apis";
-import {
-  agentStateKeys,
-  listAgentStateQueryOptions
-} from "@/lib/api/agent-state/agent-state-queries";
+import { agentStateKeys, listAgentStateQueryOptions } from "@/lib/api/agent-state/agent-state-queries";
 import { StatusBadge } from "@/components/data/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 
-const AGENT_META: Record<AgentType, { label: string; description: string; icon: React.ReactNode; runnable: boolean }> = {
+const AGENT_META: Record<
+  AgentType,
+  {
+    label: string;
+    description: string;
+    icon: React.ComponentType<{ className?: string }>;
+    color: string;
+    borderColor: string;
+    iconBg: string;
+    runnable: boolean;
+  }
+> = {
   leader: {
     label: "Leader",
     description: "Plans & executes the full agent strategy cycle",
-    icon: <CrownIcon className='size-5' />,
+    icon: CrownIcon,
+    color: "text-amber-500",
+    borderColor: "border-amber-500/30",
+    iconBg: "bg-amber-500/15",
     runnable: true
   },
   search: {
     label: "Search",
     description: "Finds and evaluates new communities to join",
-    icon: <SearchIcon className='size-5' />,
+    icon: SearchIcon,
+    color: "text-blue-500",
+    borderColor: "border-blue-500/30",
+    iconBg: "bg-blue-500/15",
     runnable: true
   },
   talk: {
     label: "Talk",
     description: "Engages in community conversations naturally",
-    icon: <MessageSquareIcon className='size-5' />,
+    icon: MessageSquareIcon,
+    color: "text-emerald-500",
+    borderColor: "border-emerald-500/30",
+    iconBg: "bg-emerald-500/15",
     runnable: false
   },
   research: {
     label: "Research",
     description: "Analyzes community members to find leads",
-    icon: <NetworkIcon className='size-5' />,
+    icon: NetworkIcon,
+    color: "text-purple-500",
+    borderColor: "border-purple-500/30",
+    iconBg: "bg-purple-500/15",
     runnable: true
   },
   sales: {
     label: "Sales",
     description: "Handles DM outreach & follow-ups",
-    icon: <ShoppingCartIcon className='size-5' />,
+    icon: ShoppingCartIcon,
+    color: "text-rose-500",
+    borderColor: "border-rose-500/30",
+    iconBg: "bg-rose-500/15",
     runnable: false
   }
 };
@@ -160,13 +184,16 @@ export function AgentControlCenter() {
           const runner = getRunner(agentType);
           const isRunning = status === "running";
           const lockedByLeader = leaderRunning && agentType !== "leader";
+          const Icon = meta.icon;
 
           return (
             <Card key={agentType} className='flex flex-col'>
-              <CardContent className='flex flex-1 flex-col gap-3 p-4'>
+              <CardContent className='flex flex-1 flex-col gap-3'>
                 <div className='flex items-center justify-between'>
                   <div className='flex items-center gap-2'>
-                    {meta.icon}
+                    <div className={cn("flex size-9 items-center justify-center rounded-lg", meta.iconBg)}>
+                      <Icon className={cn("size-5", meta.color)} />
+                    </div>
                     <span className='font-semibold'>{meta.label}</span>
                   </div>
                   <StatusBadge kind='agent' value={status} />
@@ -181,7 +208,7 @@ export function AgentControlCenter() {
                 {runner ? (
                   <Button
                     size='sm'
-                    className='w-full'
+                    className='w-full p-[14px]'
                     onClick={() => runner.mutation.mutate({})}
                     disabled={anyRunPending || isRunning || lockedByLeader}
                   >
@@ -189,7 +216,7 @@ export function AgentControlCenter() {
                     {lockedByLeader ? "Leader running…" : isRunning ? "Running…" : runner.label}
                   </Button>
                 ) : (
-                  <Button size='sm' className='w-full' disabled={true}>
+                  <Button size='sm' className='w-full p-[14px]' disabled={true}>
                     Event-driven
                   </Button>
                 )}
