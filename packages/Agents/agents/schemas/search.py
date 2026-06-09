@@ -101,10 +101,20 @@ class CommunityRecord(BaseModel):
     status: CommunityStatus = "pending_join"
     source: CommunitySource = "search"
     found_via: str = Field(
-        default="llm", description="How it was extracted: 'llm' or 'regex'."
+        default="llm",
+        description="How it was extracted: 'preview' (verified), 'llm', or 'regex'.",
     )
     source_url: str = Field(
         default="", description="The web page the handle was found on."
+    )
+    members: str = Field(
+        default="",
+        description="Member/subscriber count parsed from the channel preview, if any.",
+    )
+    verified: bool = Field(
+        default=False,
+        description="True if the channel's t.me/s preview was scraped and matched "
+        "the requirement keywords (high confidence).",
     )
     created_at: str = Field(
         default="", description="UTC ISO-8601 timestamp of first discovery."
@@ -133,4 +143,8 @@ class SearchRunResult(BaseModel):
         default=0, description="New communities written to the store."
     )
     duplicates: int = Field(default=0, description="Found but already in the store.")
+    verified: int = Field(
+        default=0,
+        description="Of those discovered, how many were confirmed via preview scrape.",
+    )
     communities: list[CommunityRecord] = Field(default_factory=list)

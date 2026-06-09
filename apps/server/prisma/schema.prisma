@@ -415,6 +415,8 @@ model AgentConfig {
   knowledgeBase      String    @default("")
   /// Max response length in words (0 = no limit).
   maxResponseLength  Int       @default(0)
+  /// Search agent: web-search queries (empty = derive from the brand's niche).
+  searchQueries      String[]
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 

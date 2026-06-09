@@ -22,9 +22,11 @@ import argparse
 import logging
 
 from agents.agent_runners.search import run_search
+from agents.lib.console import ensure_utf8_stdio
 
 
 def main() -> None:
+    ensure_utf8_stdio()
     parser = argparse.ArgumentParser(description="Run the Search agent.")
     parser.add_argument("niche", help="The brand's niche, e.g. 'AI startup founders'.")
     parser.add_argument(

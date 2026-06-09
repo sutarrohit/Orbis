@@ -18,6 +18,7 @@ export const AgentConfigSchema = z
     systemPrompt: z.string(),
     knowledgeBase: z.string(),
     maxResponseLength: z.number().int(),
+    searchQueries: z.array(z.string()),
     createdAt: dateField(),
     updatedAt: dateField(),
   })
@@ -37,6 +38,7 @@ export const UpsertAgentConfigSchema = z
     systemPrompt: z.string().optional(),
     knowledgeBase: z.string().optional(),
     maxResponseLength: z.number().int().optional(),
+    searchQueries: z.array(z.string()).optional(),
   })
   .openapi("UpsertAgentConfig");
 

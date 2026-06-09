@@ -31,6 +31,24 @@ T = TypeVar("T", bound=BaseModel)
 _model = None
 _fallback_model = None
 _fallback_built = False
+_custom_brain = None
+
+
+def get_custom_brain():
+    """Return the shared custom-proxy brain (built once), or None when off."""
+    global _custom_brain
+    if not settings.use_custom_llm:
+        return None
+    if _custom_brain is None:
+        from agents.lib.custom_llm import CustomResponsesBrain
+
+        logger.info(
+            "Routing all LLM calls to custom proxy model=%s base_url=%s",
+            settings.custom_llm_model,
+            settings.custom_llm_base_url,
+        )
+        _custom_brain = CustomResponsesBrain()
+    return _custom_brain
 
 
 def _build_model():
@@ -101,6 +119,12 @@ def brain(schema: type[T]):
     Usage:
         result = brain(SearchResult).invoke(prompt)   # -> SearchResult instance
     """
+    # When USE_CUSTOM_LLM is on, send every request to the custom proxy and skip
+    # the LangChain model + OpenRouter fallback entirely.
+    custom = get_custom_brain()
+    if custom is not None:
+        return custom.with_structured_output(schema)
+
     primary = get_model().with_structured_output(schema)
     fallback = get_fallback_model()
     if fallback is not None:

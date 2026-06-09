@@ -164,6 +164,24 @@ def resolve_brand_id(brand_ref: str) -> str:
         return brand_id
 
 
+def search_queries_for(brand_ref: str) -> list[str]:
+    """Return the Search agent's saved web-search queries for a brand.
+
+    Reads the ``searchQueries`` column off the brand's ``agent_config`` row
+    (agentType = 'search'), set via the dashboard's Agent Config form. Returns
+    an empty list when no config row exists or the field is unset, so callers
+    can fall back to niche-derived defaults.
+    """
+    with cursor() as cur:
+        cur.execute(
+            'SELECT "searchQueries" FROM agent_config '
+            "WHERE \"brandId\" = %s AND \"agentType\" = 'search' LIMIT 1",
+            (resolve_brand_id(brand_ref),),
+        )
+        row = cur.fetchone()
+    return list(row[0]) if row and row[0] else []
+
+
 def _create_brand(cur, slug: str) -> str:
     """Insert a brand owned by the system user; return its id. Runs in ``cur``'s tx."""
     owner_id = _ensure_system_user(cur)

@@ -31,6 +31,7 @@ export function upsertAgentConfig(
       systemPrompt: fields.systemPrompt ?? "",
       knowledgeBase: fields.knowledgeBase ?? "",
       maxResponseLength: fields.maxResponseLength ?? 0,
+      searchQueries: fields.searchQueries ?? [],
     },
     // undefined fields are ignored by Prisma, so only provided values change.
     update: fields,
