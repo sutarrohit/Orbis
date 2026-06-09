@@ -327,10 +327,21 @@ def run_leader_cycle(
     With ``use_checkpointer`` the graph keeps durable per-brand state under a
     ``thread_id`` of ``leader:<brand_id>`` (crash recovery + continuity).
     """
-    global _graph
-    if _graph is None:
-        cp = get_checkpointer() if use_checkpointer else None
-        _graph = build_leader_graph(cp)
-    config = {"configurable": {"thread_id": f"leader:{brand_id}"}}
-    final = _graph.invoke({"brand_id": brand_id}, config=config)
-    return final["result"]
+    # Guard + status: mark the Leader running for the WHOLE cycle (it spawns the
+    # other workers), so the dashboard shows it running and blocks manual runs
+    # until the cycle finishes. A concurrent second call is a no-op.
+    if guardrails.is_running(brand_id, AGENT_TYPE):
+        logger.info("Leader already running for brand=%s; skipping.", brand_id)
+        return LeaderCycleResult(brand_id=brand_id)
+
+    guardrails.set_state(brand_id, AGENT_TYPE, "running", current_task="leader cycle")
+    try:
+        global _graph
+        if _graph is None:
+            cp = get_checkpointer() if use_checkpointer else None
+            _graph = build_leader_graph(cp)
+        config = {"configurable": {"thread_id": f"leader:{brand_id}"}}
+        final = _graph.invoke({"brand_id": brand_id}, config=config)
+        return final["result"]
+    finally:
+        guardrails.set_state(brand_id, AGENT_TYPE, "idle")

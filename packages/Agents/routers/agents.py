@@ -14,7 +14,9 @@ Wire into the app with::
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+import logging
+
+from fastapi import APIRouter, BackgroundTasks
 
 from agents.lib.store import CommunityStore, LeadStore
 from agents.agent_runners.research import run_research
@@ -31,17 +33,47 @@ from agents.schemas.leader import LeaderCycleResult
 
 router = APIRouter()
 
+logger = logging.getLogger(__name__)
 
-@router.post("/agents/search/run", response_model=SearchRunResult, status_code=201)
-def trigger_search(request: SearchRunRequest) -> SearchRunResult:
-    """Run the Search agent once and persist discovered communities (pending_join)."""
-    return run_search(
+
+def _safe_run(fn, *args, **kwargs) -> None:
+    """Run an agent in the background, logging (never raising) on failure.
+
+    Background tasks have no client to report errors to; each agent already
+    flips ``agent_state`` back to idle in its own ``finally``.
+    """
+    try:
+        fn(*args, **kwargs)
+    except Exception:  # noqa: BLE001 — background task must not crash the worker
+        logger.exception("Background agent run failed: %s", getattr(fn, "__name__", fn))
+
+
+@router.post("/agents/search/run", response_model=SearchRunResult, status_code=202)
+def trigger_search(
+    request: SearchRunRequest, background_tasks: BackgroundTasks
+) -> SearchRunResult:
+    """Kick off the Search agent in the background and return immediately.
+
+    The run updates ``agent_state`` (running → idle) for the dashboard to poll,
+    so the live status survives page navigation and reloads. The response body
+    is an immediate acknowledgement, not the final result.
+    """
+    background_tasks.add_task(
+        _safe_run,
+        run_search,
         request.niche,
         brand_id=request.brand_id,
         queries=request.queries,
         limit=request.limit,
         use_llm=request.use_llm,
         firecrawl_mode=request.firecrawl_mode,
+    )
+    return SearchRunResult(
+        brand_id=request.brand_id,
+        niche=request.niche,
+        queries=request.queries or [],
+        firecrawl_mode=(request.firecrawl_mode or "live"),
+        used_llm=False,
     )
 
 
@@ -62,12 +94,23 @@ def trigger_talk(ctx: TalkContext, account_active: bool = True) -> TalkDecision:
     return decide_reply(ctx, account_active=account_active)
 
 
-@router.post("/agents/research/run", response_model=ResearchRunResult, status_code=201)
-def trigger_research(request: ResearchRunRequest) -> ResearchRunResult:
-    """Run the Research agent once: score conversations + members into leads."""
-    return run_research(
-        request.brand_id, niche=request.niche, use_llm=request.use_llm
+@router.post("/agents/research/run", response_model=ResearchRunResult, status_code=202)
+def trigger_research(
+    request: ResearchRunRequest, background_tasks: BackgroundTasks
+) -> ResearchRunResult:
+    """Kick off the Research agent in the background and return immediately.
+
+    Updates ``agent_state`` for the dashboard to poll; the response body is an
+    immediate acknowledgement, not the final result.
+    """
+    background_tasks.add_task(
+        _safe_run,
+        run_research,
+        request.brand_id,
+        niche=request.niche,
+        use_llm=request.use_llm,
     )
+    return ResearchRunResult(brand_id=request.brand_id)
 
 
 @router.post("/agents/sales/decide", response_model=SalesReply)
@@ -87,15 +130,21 @@ def list_leads(brand_id: str | None = None) -> list[LeadRecord]:
     return store.for_brand(brand_id) if brand_id else store.all()
 
 
-@router.post("/agents/leader/run", response_model=LeaderCycleResult, status_code=201)
+@router.post("/agents/leader/run", response_model=LeaderCycleResult, status_code=202)
 def trigger_leader(
-    brand_id: str = "default", use_checkpointer: bool = True
+    background_tasks: BackgroundTasks,
+    brand_id: str = "default",
+    use_checkpointer: bool = True,
 ) -> LeaderCycleResult:
-    """Run ONE Leader cycle for a brand on demand.
+    """Kick off ONE Leader cycle in the background and return immediately.
 
     The same cycle the scheduler fires every 5 min (load → decide → execute):
     spawn Search/Research, assign communities, apply lead/account actions, and run
     the outbound pipeline. ``use_checkpointer=false`` skips durable state (handy
-    for a quick manual run without the direct DB connection).
+    for a quick manual run without the direct DB connection). Updates
+    ``agent_state`` for the dashboard to poll; the body is an acknowledgement.
     """
-    return run_leader_cycle(brand_id, use_checkpointer=use_checkpointer)
+    background_tasks.add_task(
+        _safe_run, run_leader_cycle, brand_id, use_checkpointer=use_checkpointer
+    )
+    return LeaderCycleResult(brand_id=brand_id)
