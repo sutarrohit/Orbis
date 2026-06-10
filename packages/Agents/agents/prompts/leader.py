@@ -37,11 +37,18 @@ def render_leader_prompt(snap: dict) -> str:
         if goals
         else ""
     )
+    knowledge = snap.get("knowledge_base", "").strip()
+    knowledge_block = (
+        f"\nBRAND KNOWLEDGE (product, positioning, and guidelines — context for\n"
+        f"judging which communities and leads matter; not a list of actions)\n{knowledge}\n"
+        if knowledge
+        else ""
+    )
 
     return f"""You are the Leader orchestrating one brand's lead-generation funnel.
 Decide this cycle's plan. You do not act directly — deterministic code applies
 your plan under hard limits. Prefer doing nothing over acting without a reason.
-{goals_block}
+{goals_block}{knowledge_block}
 BRAND STATE
 - Niche: {snap.get('niche', '')!r}
 - Joined communities: {snap.get('joined_communities', 0)}

@@ -28,9 +28,11 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
+from agents.constants.defaults import default_system_prompt
 from agents.constants.research import interest_level
 from agents.lib import guardrails
 from agents.lib.config import settings
+from agents.lib.db import knowledge_base_for, system_prompt_for
 from agents.lib.llm import brain
 from agents.lib.store import ConversationStore, GroupMemberStore, LeadStore
 from agents.prompts.research import (render_inbound_prompt,
@@ -43,18 +45,22 @@ logger = logging.getLogger(__name__)
 AGENT_TYPE = "research"
 
 
-def _score_inbound(niche: str, convos) -> list[ScoredLead]:
+def _score_inbound(
+    niche: str, convos, *, guidance: str = "", knowledge: str = ""
+) -> list[ScoredLead]:
     """DECIDE (inbound): one structured call. Raises on any LLM/transport error."""
     result: ResearchResult = brain(ResearchResult).invoke(
-        render_inbound_prompt(niche, convos)
+        render_inbound_prompt(niche, convos, guidance=guidance, knowledge=knowledge)
     )
     return result.inbound_leads
 
 
-def _score_outbound(niche: str, members) -> list[ScoredLead]:
+def _score_outbound(
+    niche: str, members, *, guidance: str = "", knowledge: str = ""
+) -> list[ScoredLead]:
     """DECIDE (outbound): one structured call. Raises on any LLM/transport error."""
     result: ResearchResult = brain(ResearchResult).invoke(
-        render_outbound_prompt(niche, members)
+        render_outbound_prompt(niche, members, guidance=guidance, knowledge=knowledge)
     )
     return result.outbound_prospects
 
@@ -110,15 +116,23 @@ def run_research(
         inbound: list[ScoredLead] = []
         outbound: list[ScoredLead] = []
         if use_llm:
+            guidance = system_prompt_for(brand_id, "research") or default_system_prompt(
+                "research"
+            )
+            knowledge = knowledge_base_for(brand_id, "research")
             if convos:
                 try:
-                    inbound = _score_inbound(niche, convos)
+                    inbound = _score_inbound(
+                        niche, convos, guidance=guidance, knowledge=knowledge
+                    )
                     used_llm = True
                 except Exception as exc:
                     logger.warning("Research inbound pass unavailable: %s", exc)
             if members:
                 try:
-                    outbound = _score_outbound(niche, members)
+                    outbound = _score_outbound(
+                        niche, members, guidance=guidance, knowledge=knowledge
+                    )
                     used_llm = True
                 except Exception as exc:
                     logger.warning("Research outbound pass unavailable: %s", exc)

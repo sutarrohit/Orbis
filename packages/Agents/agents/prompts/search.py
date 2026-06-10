@@ -8,13 +8,16 @@ can be iterated on without touching control flow.
 from __future__ import annotations
 
 from agents.agent_runners.search.firecrawl_client import WebSearchResult
+from agents.prompts._shared import guidance_block
 
 # Cap how much page-body text we hand the model per result, to keep token use
 # sane. High-signal fields (url/title/telegram links) are added on top of this.
 _MAX_CHARS_PER_RESULT = 8000
 
 
-def render_search_prompt(niche: str, results: list[WebSearchResult]) -> str:
+def render_search_prompt(
+    niche: str, results: list[WebSearchResult], guidance: str = ""
+) -> str:
     """Build the Search agent's extraction prompt from raw web results.
 
     The model must return a ``SearchResult`` (handled by structured output): a
@@ -34,7 +37,8 @@ def render_search_prompt(niche: str, results: list[WebSearchResult]) -> str:
     corpus = "\n\n".join(blocks) if blocks else "(no web results)"
 
     return (
-        "You are the Search agent for a brand. Your job is to find Telegram "
+        guidance_block(guidance)
+        + "You are the Search agent for a brand. Your job is to find Telegram "
         "communities (groups or channels) relevant to the brand's niche from the "
         "web search results below.\n\n"
         f"BRAND NICHE: {niche}\n\n"

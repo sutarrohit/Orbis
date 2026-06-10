@@ -29,9 +29,10 @@ from datetime import datetime, timezone
 from agents.constants.search import (AT_RE, MEMBERS_RE, REGEX_DEFAULT_RELEVANCE,
                                      RESERVED_USERNAMES, TG_RESOLVE_RE, TME_RE,
                                      default_queries, keywords_from)
+from agents.constants.defaults import default_system_prompt
 from agents.lib import guardrails
 from agents.lib.config import settings
-from agents.lib.db import search_queries_for
+from agents.lib.db import search_queries_for, system_prompt_for
 from agents.lib.llm import brain
 from agents.lib.store import CommunityStore
 from agents.prompts.search import render_search_prompt
@@ -105,9 +106,11 @@ def _source_url_for(handle: str, results: list[WebSearchResult]) -> str:
     return ""
 
 
-def _decide_with_llm(niche: str, results: list[WebSearchResult]) -> SearchResult:
+def _decide_with_llm(
+    niche: str, results: list[WebSearchResult], guidance: str = ""
+) -> SearchResult:
     """DECIDE step: one structured LLM call. Raises on any LLM/transport error."""
-    prompt = render_search_prompt(niche, results)
+    prompt = render_search_prompt(niche, results, guidance)
     result = brain(SearchResult).invoke(prompt)
     return result
 
@@ -174,8 +177,9 @@ def run_search(
         llm_communities: list[FoundCommunity] = []
         used_llm = False
         if use_llm and results:
+            guidance = system_prompt_for(brand_id, "search") or default_system_prompt("search")
             try:
-                decision = _decide_with_llm(niche, results)
+                decision = _decide_with_llm(niche, results, guidance)
                 llm_communities = decision.communities
                 used_llm = True
             except Exception as exc:

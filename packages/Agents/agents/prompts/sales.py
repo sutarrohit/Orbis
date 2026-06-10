@@ -13,13 +13,16 @@ honouring the §9 copy standard and never inventing facts.
 
 from __future__ import annotations
 
+from agents.prompts._shared import guidance_block
 from agents.schemas.sales import BrandProfile, SalesContext
 
 # Cap DM history to keep token use sane.
 _MAX_HISTORY = 12
 
 
-def render_sales_prompt(ctx: SalesContext, profile: BrandProfile) -> str:
+def render_sales_prompt(
+    ctx: SalesContext, profile: BrandProfile, *, guidance: str = ""
+) -> str:
     """Build the Sales agent's per-DM decision prompt from ``ctx`` + ``profile``."""
     hist = ctx.history[-_MAX_HISTORY:]
     if hist:
@@ -39,7 +42,8 @@ def render_sales_prompt(ctx: SalesContext, profile: BrandProfile) -> str:
     lead = ctx.username or ctx.lead_user_id
 
     return (
-        "You are the Sales agent handling a 1:1 Telegram DM with a known lead. "
+        guidance_block(guidance)
+        + "You are the Sales agent handling a 1:1 Telegram DM with a known lead. "
         f"Speak as: {profile.persona or 'a helpful, low-pressure account rep'}.\n\n"
         f"PRODUCT:\n{profile.product_summary or '(not provided)'}\n\n"
         f"PRICING (the only prices you may quote):\n{pricing}\n\n"

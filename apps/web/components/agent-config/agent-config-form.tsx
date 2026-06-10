@@ -164,8 +164,8 @@ export function AgentConfigForm({
           </div>
         ) : null}
 
-        {/* Persona Description — hidden for the Search agent */}
-        {agentType !== "search" ? (
+        {/* Persona Description — hidden for the Search and Leader agents */}
+        {agentType !== "search" && agentType !== "leader" ? (
           <div className="flex flex-col gap-2">
             <Label htmlFor={`${agentType}-persona-desc`}>
               Persona Description
@@ -305,52 +305,54 @@ export function AgentConfigForm({
         </section>
       ) : null}
 
-      {/* FINE-TUNING */}
-      <section className="flex flex-col gap-4">
-        <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Fine-Tuning
-          </h3>
-          <Separator className="mt-2" />
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`${agentType}-max-length`}>
-              Max Response Length (words)
-            </Label>
-            <Input
-              id={`${agentType}-max-length`}
-              type="number"
-              min={0}
-              value={form.maxResponseLength || ""}
-              onChange={(e) =>
-                set(
-                  "maxResponseLength",
-                  e.target.value ? Number(e.target.value) : 0,
-                )
-              }
-              placeholder="0 = no limit"
-            />
+      {/* FINE-TUNING — hidden for the Leader agent */}
+      {agentType !== "leader" ? (
+        <section className="flex flex-col gap-4">
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Fine-Tuning
+            </h3>
+            <Separator className="mt-2" />
           </div>
 
-          {/* Agent Enabled — hidden from UI; code kept for future use
-          <div className="flex items-center justify-between rounded-lg border p-4">
-            <div className="flex flex-col">
-              <Label htmlFor={`${agentType}-enabled`}>Agent Enabled</Label>
-              <span className="text-xs text-muted-foreground">
-                Turn this agent on or off
-              </span>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`${agentType}-max-length`}>
+                Max Response Length (words)
+              </Label>
+              <Input
+                id={`${agentType}-max-length`}
+                type="number"
+                min={0}
+                value={form.maxResponseLength || ""}
+                onChange={(e) =>
+                  set(
+                    "maxResponseLength",
+                    e.target.value ? Number(e.target.value) : 0,
+                  )
+                }
+                placeholder="0 = no limit"
+              />
             </div>
-            <Switch
-              id={`${agentType}-enabled`}
-              checked={form.enabled}
-              onCheckedChange={(v) => set("enabled", v)}
-            />
+
+            {/* Agent Enabled — hidden from UI; code kept for future use
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="flex flex-col">
+                <Label htmlFor={`${agentType}-enabled`}>Agent Enabled</Label>
+                <span className="text-xs text-muted-foreground">
+                  Turn this agent on or off
+                </span>
+              </div>
+              <Switch
+                id={`${agentType}-enabled`}
+                checked={form.enabled}
+                onCheckedChange={(v) => set("enabled", v)}
+              />
+            </div>
+            */}
           </div>
-          */}
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       {/* Save button */}
       <div className="flex justify-end">

@@ -24,6 +24,7 @@ from langgraph.graph import END, START, StateGraph
 from agents.agent_runners.outreach import run_outbound_pipeline
 from agents.agent_runners.research import run_research
 from agents.agent_runners.search import run_search
+from agents.constants.defaults import default_system_prompt
 from agents.constants.leader import ACTION_CYCLE, MAX_GROUPS_PER_ACCOUNT
 from agents.lib import db, guardrails
 from agents.lib.llm import brain
@@ -104,7 +105,8 @@ def load_full_state(brand_id: str) -> dict:
         "brand_id": brand_id,
         "niche": niche,
         "active": active,
-        "goals": db.leader_goals_for(brand_id),
+        "goals": db.leader_goals_for(brand_id) or default_system_prompt("leader"),
+        "knowledge_base": db.knowledge_base_for(brand_id),
         "joined_communities": comm.get("joined", 0),
         "pending_communities": comm.get("pending_join", 0),
         "unassigned_joined": unassigned_joined,
