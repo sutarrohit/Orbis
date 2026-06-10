@@ -6,6 +6,7 @@ import { PlusIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import type { AgentConfig } from "@/lib/api/agent-config/agent-config-apis";
+import { AGENT_DEFAULTS } from "@/lib/api/agent-config/agent-defaults";
 import {
   agentConfigKeys,
   upsertAgentConfigMutationOptions,
@@ -67,16 +68,20 @@ export function AgentConfigForm({
   config?: AgentConfig;
 }) {
   const queryClient = useQueryClient();
+  // Generic per-role defaults fill persona/style/system-prompt when the brand
+  // has not set them, so the form shows what the agent will do by default
+  // (matches the agents' runtime fallback). A saved value always wins.
+  const defaults = AGENT_DEFAULTS[agentType];
   const [form, setForm] = useState<FormState>({
     enabled: config?.enabled ?? true,
-    personaName: config?.personaName ?? "",
-    responseStyle: config?.responseStyle ?? "",
+    personaName: config?.personaName || defaults.personaName,
+    responseStyle: config?.responseStyle || defaults.responseStyle,
     personaDescription: config?.personaDescription ?? "",
     voiceTags: config?.voiceTags ?? [],
     voiceDescription: config?.voiceDescription ?? "",
     behaviorRules: config?.behaviorRules ?? [],
     bannedTopics: config?.bannedTopics ?? [],
-    systemPrompt: config?.systemPrompt ?? "",
+    systemPrompt: config?.systemPrompt || defaults.systemPrompt,
     knowledgeBase: config?.knowledgeBase ?? "",
     maxResponseLength: config?.maxResponseLength ?? 0,
     searchQueries: config?.searchQueries ?? [],
