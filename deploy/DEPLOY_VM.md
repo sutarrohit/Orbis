@@ -8,7 +8,7 @@ no Postgres on the box.
 
 ```
                           Internet
-                             │  https://api.your-domain.com
+                             │  https://api.orbist.space
                              ▼
                     ┌──────────────────┐   host
                     │  Nginx + certbot │   (TLS termination)
@@ -67,13 +67,13 @@ nano ~/.ssh/authorized_keys   # delete the "zdInstance" id_ed25519_new line
 
 ## 1. DNS
 
-Point a domain (e.g. `api.your-domain.com`) at the box:
+Point a domain (e.g. `api.orbist.space`) at the box:
 
 ```
-A    api.your-domain.com    172.104.171.139
+A    api.orbist.space    172.104.171.139
 ```
 
-Wait for it to resolve (`dig +short api.your-domain.com` → the IP) before doing TLS in step 7.
+Wait for it to resolve (`dig +short api.orbist.space` → the IP) before doing TLS in step 7.
 
 ---
 
@@ -104,9 +104,9 @@ docker --version && docker compose version
 
 ```bash
 # On the server
-mkdir -p /opt && cd /opt
-git clone <YOUR_REPO_URL> orbis
-cd orbis
+mkdir -p ~/orbis && cd ~/orbis
+git clone <YOUR_REPO_URL>     # creates ~/orbis/Orbis
+cd Orbis
 ```
 
 (If the repo is private, add a deploy key or use a token in the clone URL.)
@@ -119,17 +119,22 @@ cd orbis
 your local copies. From your laptop:
 
 ```bash
-scp -i ~/.ssh/orbis_deploy apps/server/.env        root@172.104.171.139:/opt/orbis/apps/server/.env
-scp -i ~/.ssh/orbis_deploy packages/Agents/.env    root@172.104.171.139:/opt/orbis/packages/Agents/.env
+# Run from the repo root; LinodeVM/id_ed25519_new is your SSH private key.
+scp -i LinodeVM/id_ed25519_new apps/server/.env        root@172.104.171.139:~/orbis/Orbis/apps/server/.env
+scp -i LinodeVM/id_ed25519_new packages/Agents/.env    root@172.104.171.139:~/orbis/Orbis/packages/Agents/.env
 ```
 
-Then edit the **production** values on the server (`nano /opt/orbis/apps/server/.env`):
+> The `LinodeVM/` key is git-ignored (kept out of the repo). On Windows, if SSH
+> rejects the key with a permissions error, restrict it first:
+> `icacls LinodeVM\id_ed25519_new /inheritance:r /grant:r "$($env:USERNAME):R"`.
+
+Then edit the **production** values on the server (`nano ~/orbis/Orbis/apps/server/.env`):
 
 ```env
 NODE_ENV="production"
-FRONTEND_URL="https://your-frontend-domain.com"        # for CORS
-PUBLIC_URL="https://api.your-domain.com"               # Telegram webhook target (must be HTTPS)
-BETTER_AUTH_URL="https://api.your-domain.com"
+FRONTEND_URL="https://orbist.space"                    # your web app's origin (CORS)
+PUBLIC_URL="https://api.orbist.space"               # Telegram webhook target (must be HTTPS)
+BETTER_AUTH_URL="https://api.orbist.space"
 # DATABASE_URL / DIRECT_URL: keep your Supabase values
 # AGENTS_JWT_SECRET: MUST match the value in packages/Agents/.env
 # AGENTS_SERVICE_URL is overridden to http://agents-api:8000 by docker-compose — leave as-is
@@ -148,14 +153,14 @@ SCHEDULER_ENABLED="true"     # set true if you want the Leader clock to run (in 
 > shared secret Hono uses to sign the service token the Python side verifies.
 
 Also update **Google OAuth**: in the Google Cloud console add the authorized
-redirect URI `https://api.your-domain.com/api/auth/callback/google`.
+redirect URI `https://api.orbist.space/api/auth/callback/google`.
 
 ---
 
 ## 5. Build & start
 
 ```bash
-cd /opt/orbis
+cd ~/orbis/Orbis
 docker compose up -d --build
 docker compose ps
 ```
@@ -203,12 +208,20 @@ docker compose run --rm api pnpm --filter @repo/api exec prisma migrate deploy
 apt-get install -y nginx certbot python3-certbot-nginx
 ```
 
-Create `/etc/nginx/sites-available/orbis`:
+First confirm DNS resolves (certbot's HTTP-01 challenge fails otherwise):
 
-```nginx
+```bash
+dig +short api.orbist.space      # must print 172.104.171.139
+```
+
+Create the site with a quoted heredoc (so `$host` etc. land verbatim):
+
+```bash
+cat >/etc/nginx/sites-available/orbis <<'NGINX'
 server {
     listen 80;
-    server_name api.your-domain.com;
+    listen [::]:80;
+    server_name api.orbist.space;
 
     # Better Auth sets cookies; large headers on OAuth — give it room.
     proxy_buffer_size   16k;
@@ -223,20 +236,27 @@ server {
         proxy_set_header   X-Forwarded-Proto $scheme;
     }
 }
+NGINX
 ```
 
-Enable it and get a certificate (certbot rewrites the block to 443 + auto-renews):
+Enable it (and remove the stock default site, which otherwise shadows ours on
+port 80), then get a certificate — certbot rewrites the block to 443, adds an
+HTTP→HTTPS redirect, and installs an auto-renew timer:
 
 ```bash
-ln -s /etc/nginx/sites-available/orbis /etc/nginx/sites-enabled/orbis
+ln -sf /etc/nginx/sites-available/orbis /etc/nginx/sites-enabled/orbis
+rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx
-certbot --nginx -d api.your-domain.com
+
+ufw allow 443 && ufw reload      # also allow 443 in the Linode Cloud Firewall
+certbot --nginx -d api.orbist.space
+certbot renew --dry-run          # confirm auto-renew works
 ```
 
 Verify from your laptop:
 
 ```bash
-curl -s https://api.your-domain.com/
+curl -s https://api.orbist.space/
 ```
 
 ---
@@ -254,7 +274,7 @@ docker compose exec api pnpm --filter @repo/api webhook:telegram
 ## 9. Updating after code changes
 
 ```bash
-cd /opt/orbis
+cd ~/orbis/Orbis
 git pull
 docker compose up -d --build      # rebuilds only what changed
 docker compose logs -f

@@ -30,7 +30,13 @@ const EnvSchema = z.object({
   // sign the service token Hono sends; the same value must be set on the Python
   // side so it can verify the token.
   AGENTS_SERVICE_URL: z.url().default("http://localhost:8000"),
-  AGENTS_JWT_SECRET: z.string().min(1)
+  AGENTS_JWT_SECRET: z.string().min(1),
+
+  // Set when the web app and API run on different subdomains of one parent
+  // (e.g. app.orbist.space + api.orbist.space) so the session cookie is written
+  // on the shared parent and both can read it. Use a leading dot:
+  // COOKIE_DOMAIN=".orbist.space". Leave unset for single-origin localhost dev.
+  COOKIE_DOMAIN: z.string().optional()
 });
 
 export type env = z.infer<typeof EnvSchema>;
