@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
-import { Switch } from "@/components/ui/switch";
+// import { Switch } from "@/components/ui/switch"; // re-enable with the Agent Enabled toggle
 import { Textarea } from "@/components/ui/textarea";
 
 const RESPONSE_STYLES = [
@@ -164,21 +164,24 @@ export function AgentConfigForm({
           </div>
         ) : null}
 
-        <div className="flex flex-col gap-2">
-          <Label htmlFor={`${agentType}-persona-desc`}>
-            Persona Description
-          </Label>
-          <Textarea
-            id={`${agentType}-persona-desc`}
-            value={form.personaDescription}
-            onChange={(e) => set("personaDescription", e.target.value)}
-            rows={3}
-            placeholder="Describe this agent's persona and personality..."
-          />
-        </div>
+        {/* Persona Description — hidden for the Search agent */}
+        {agentType !== "search" ? (
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`${agentType}-persona-desc`}>
+              Persona Description
+            </Label>
+            <Textarea
+              id={`${agentType}-persona-desc`}
+              value={form.personaDescription}
+              onChange={(e) => set("personaDescription", e.target.value)}
+              rows={3}
+              placeholder="Describe this agent's persona and personality..."
+            />
+          </div>
+        ) : null}
       </section>
 
-      {/* VOICE & TONE */}
+      {/* VOICE & TONE — hidden from UI; code kept for future use
       <section className="flex flex-col gap-4">
         <div>
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -212,6 +215,7 @@ export function AgentConfigForm({
           />
         </div>
       </section>
+      */}
 
       {/* SYSTEM PROMPT (ADVANCED) */}
       <section className="flex flex-col gap-4">
@@ -237,7 +241,7 @@ export function AgentConfigForm({
         </div>
       </section>
 
-      {/* BEHAVIOR & RULES */}
+      {/* BEHAVIOR & RULES — hidden from UI; code kept for future use
       <section className="flex flex-col gap-4">
         <div>
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -274,29 +278,32 @@ export function AgentConfigForm({
           />
         </div>
       </section>
+      */}
 
-      {/* KNOWLEDGE BASE */}
-      <section className="flex flex-col gap-4">
-        <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Knowledge Base
-          </h3>
-          <Separator className="mt-2" />
-        </div>
+      {/* KNOWLEDGE BASE — hidden for the Search agent */}
+      {agentType !== "search" ? (
+        <section className="flex flex-col gap-4">
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Knowledge Base
+            </h3>
+            <Separator className="mt-2" />
+          </div>
 
-        <div className="flex flex-col gap-2">
-          <Label htmlFor={`${agentType}-knowledge-base`}>
-            Product Info, FAQs, Brand Guidelines
-          </Label>
-          <Textarea
-            id={`${agentType}-knowledge-base`}
-            value={form.knowledgeBase}
-            onChange={(e) => set("knowledgeBase", e.target.value)}
-            rows={6}
-            placeholder="Enter product information, frequently asked questions, brand guidelines..."
-          />
-        </div>
-      </section>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`${agentType}-knowledge-base`}>
+              Product Info, FAQs, Brand Guidelines
+            </Label>
+            <Textarea
+              id={`${agentType}-knowledge-base`}
+              value={form.knowledgeBase}
+              onChange={(e) => set("knowledgeBase", e.target.value)}
+              rows={6}
+              placeholder="Enter product information, frequently asked questions, brand guidelines..."
+            />
+          </div>
+        </section>
+      ) : null}
 
       {/* FINE-TUNING */}
       <section className="flex flex-col gap-4">
@@ -327,6 +334,7 @@ export function AgentConfigForm({
             />
           </div>
 
+          {/* Agent Enabled — hidden from UI; code kept for future use
           <div className="flex items-center justify-between rounded-lg border p-4">
             <div className="flex flex-col">
               <Label htmlFor={`${agentType}-enabled`}>Agent Enabled</Label>
@@ -340,6 +348,7 @@ export function AgentConfigForm({
               onCheckedChange={(v) => set("enabled", v)}
             />
           </div>
+          */}
         </div>
       </section>
 
