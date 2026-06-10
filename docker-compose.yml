@@ -1,0 +1,55 @@
+# Orbis — production stack for a single VM (Hono + Python agents + gateway).
+# Database is managed Supabase (set in the two .env files), so no Postgres here.
+#
+# Usage (from repo root, on the server):
+#   docker compose up -d --build
+#   docker compose logs -f
+#
+# Nginx + TLS terminate on the HOST and reverse-proxy 443 -> 127.0.0.1:4000.
+# Only the Hono API is bound to localhost; nothing here is published publicly.
+
+services:
+  # ── Hono API (the only internet-facing service, via host Nginx) ────────────
+  api:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    image: orbis-api:latest
+    env_file:
+      - apps/server/.env
+    environment:
+      NODE_ENV: production
+      # Reach the Python service across the compose network, not localhost.
+      AGENTS_SERVICE_URL: http://agents-api:8000
+    ports:
+      - "127.0.0.1:4000:4000" # host Nginx proxies https://your-domain -> here
+    depends_on:
+      - agents-api
+    restart: unless-stopped
+
+  # ── FastAPI agent service (internal; Hono is its only client) ──────────────
+  agents-api:
+    build:
+      context: ./packages/Agents
+      dockerfile: Dockerfile
+    image: orbis-agents:latest # gateway reuses this exact image
+    env_file:
+      - packages/Agents/.env
+    # The "clock" (Leader sweep) runs inside this FastAPI app's lifespan.
+    # Enable it here by setting SCHEDULER_ENABLED=true in packages/Agents/.env.
+    expose:
+      - "8000"
+    # Optional: uncomment to reach the agent API from the host for debugging.
+    # ports:
+    #   - "127.0.0.1:8000:8000"
+    restart: unless-stopped
+
+  # ── Telegram gateway runner (long-running; reuses the agents image) ────────
+  gateway:
+    image: orbis-agents:latest
+    env_file:
+      - packages/Agents/.env
+    command: ["uv", "run", "python", "-m", "agents.gateway.runner"]
+    depends_on:
+      - agents-api # ensures the orbis-agents:latest image is built first
+    restart: unless-stopped
