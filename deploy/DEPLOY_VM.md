@@ -34,10 +34,15 @@ Files added to the repo for this deploy:
 
 | File | Purpose |
 |---|---|
-| `apps/server/Dockerfile` | Builds the Hono image (workspace-aware; entry `dist/src/index.js`) |
+| `apps/server/Dockerfile` | Builds the Hono image. **Build context is the repo root** (`context: .` in compose) because it's a pnpm workspace; entry `dist/src/index.js` |
 | `packages/Agents/Dockerfile` | One Python image for both the FastAPI service and the gateway |
 | `packages/Agents/.dockerignore`, `.dockerignore` | Keep build contexts small & secret-free |
-| `docker-compose.yml` | Orchestrates `api` + `agents-api` + `gateway` |
+| `docker-compose.yml` | Orchestrates `api` + `agents-api` + `gateway` on one private bridge network (`orbis-net`) |
+
+All three services share an explicit bridge network (`orbis-net`) and reach each
+other **by service name** — the Hono API calls the Python service at
+`http://agents-api:8000`. Inside Docker the service name *is* the private
+address; sibling containers are **not** reachable via `localhost`.
 
 ---
 
@@ -155,8 +160,9 @@ docker compose up -d --build
 docker compose ps
 ```
 
-First build is slow (Torch/Pyrogram make the Python image large — see caveat at
-the bottom). Watch logs:
+First build is slow. The Hono image installs the whole pnpm workspace and runs
+`prisma generate`; the Python image pulls Pyrogram and (currently) Torch — see
+the Torch caveat at the bottom. Watch logs:
 
 ```bash
 docker compose logs -f api
@@ -168,8 +174,13 @@ Sanity-check inside the box:
 
 ```bash
 curl -s http://127.0.0.1:4000/                # Hono
-docker compose exec agents-api curl -s http://localhost:8000/health   # {"status":"ok"}
+curl -s http://127.0.0.1:8000/health          # agents-api (published on localhost) → {"status":"ok"}
 ```
+
+> `agents-api` publishes `127.0.0.1:8000` for host-side debugging only; it is
+> **not** exposed publicly (the firewall in step 2 opens 22/80/443 only). The
+> Hono API still reaches it over the compose network at `http://agents-api:8000`,
+> not via this host port.
 
 ---
 
@@ -267,11 +278,19 @@ docker compose logs -f
 
 ## Caveats & notes
 
-- **Torch image size.** `torch>=2.0` from PyPI on Linux pulls the CUDA build
-  (~2–3 GB) even with no GPU. On a small Linode this can blow disk/build time.
-  If you don't need GPU, switch to CPU-only Torch — tell me and I'll pin
-  `torch` to the CPU wheel index in `pyproject.toml` (`https://download.pytorch.org/whl/cpu`),
-  which cuts the image by gigabytes.
+- **Torch is an unused dependency (remove it).** `torch>=2.0` (and `einops`) are
+  listed in `packages/Agents/pyproject.toml` but **not imported anywhere** in the
+  agent code. On Linux, `torch` pulls the full CUDA stack (the `nvidia-*` wheels,
+  ~2–3 GB) even with no GPU, bloating build time and disk on a small Linode.
+  Removing `torch` and `einops` from `pyproject.toml` and re-running `uv lock`
+  drops the entire CUDA download. (If a future feature ever needs Torch on a
+  CPU-only box, pin it to the CPU wheel index `https://download.pytorch.org/whl/cpu`
+  instead of the default PyPI build.)
+- **`prisma generate` runs at build time without secrets.** The runtime `.env` is
+  injected later via compose `env_file`, so `prisma.config.ts` reads `DIRECT_URL`
+  straight from the environment with a build-time placeholder rather than the
+  app's strict `src/env.ts` validator. The real env is still validated when the
+  server actually boots.
 - **The clock / scheduler** runs inside the `agents-api` (FastAPI) lifespan when
   `SCHEDULER_ENABLED=true`. The `gateway` service is separate and always runs the
   Telegram send/join/health loops.

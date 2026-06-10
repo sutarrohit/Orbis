@@ -25,6 +25,8 @@ services:
       - "127.0.0.1:4000:4000" # host Nginx proxies https://your-domain -> here
     depends_on:
       - agents-api
+    networks:
+      - orbis-net
     restart: unless-stopped
 
   # ── FastAPI agent service (internal; Hono is its only client) ──────────────
@@ -40,8 +42,10 @@ services:
     expose:
       - "8000"
     # Optional: uncomment to reach the agent API from the host for debugging.
-    # ports:
-    #   - "127.0.0.1:8000:8000"
+    ports:
+      - "127.0.0.1:8000:8000"
+    networks:
+      - orbis-net
     restart: unless-stopped
 
   # ── Telegram gateway runner (long-running; reuses the agents image) ────────
@@ -52,4 +56,14 @@ services:
     command: ["uv", "run", "python", "-m", "agents.gateway.runner"]
     depends_on:
       - agents-api # ensures the orbis-agents:latest image is built first
+    networks:
+      - orbis-net
     restart: unless-stopped
+
+# ── Shared private network ───────────────────────────────────────────────────
+# All services join one explicit bridge network so they resolve each other by
+# service name (e.g. http://agents-api:8000). This is the "local"/private
+# address inside Docker — sibling containers are NOT reachable via localhost.
+networks:
+  orbis-net:
+    driver: bridge
