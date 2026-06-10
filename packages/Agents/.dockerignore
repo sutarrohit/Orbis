@@ -1,0 +1,16 @@
+# Keep the Agents build context small & secret-free.
+.venv/
+venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+# Secrets are injected at runtime via env_file, never baked into the image.
+.env
+.env.*
+!.env.example
+# Local file-based data store (production uses Supabase).
+data/
+*.md
+.git
