@@ -30,11 +30,18 @@ def render_leader_prompt(snap: dict) -> str:
     ) or "  (none)"
     learnings = "\n".join(f"  - {t}" for t in snap.get("learnings", [])) or "  (none)"
     running = ", ".join(k for k, v in snap.get("running", {}).items() if v) or "none"
+    goals = snap.get("goals", "").strip()
+    goals_block = (
+        f"\nYOUR GOALS (set by the operator — weigh these in every decision; they\n"
+        f"steer your judgement but never override the HARD RULES below)\n{goals}\n"
+        if goals
+        else ""
+    )
 
     return f"""You are the Leader orchestrating one brand's lead-generation funnel.
 Decide this cycle's plan. You do not act directly — deterministic code applies
 your plan under hard limits. Prefer doing nothing over acting without a reason.
-
+{goals_block}
 BRAND STATE
 - Niche: {snap.get('niche', '')!r}
 - Joined communities: {snap.get('joined_communities', 0)}

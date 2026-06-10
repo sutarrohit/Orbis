@@ -182,6 +182,24 @@ def search_queries_for(brand_ref: str) -> list[str]:
     return list(row[0]) if row and row[0] else []
 
 
+def leader_goals_for(brand_ref: str) -> str:
+    """Return the Leader agent's operator-set goals for a brand.
+
+    Reads the ``systemPrompt`` column off the brand's ``agent_config`` row
+    (agentType = 'leader'), set via the dashboard's Leader Goals form. Returns
+    an empty string when no config row exists or the field is unset, so the
+    prompt can omit the goals section entirely.
+    """
+    with cursor() as cur:
+        cur.execute(
+            'SELECT "systemPrompt" FROM agent_config '
+            "WHERE \"brandId\" = %s AND \"agentType\" = 'leader' LIMIT 1",
+            (resolve_brand_id(brand_ref),),
+        )
+        row = cur.fetchone()
+    return (row[0] or "").strip() if row else ""
+
+
 def _create_brand(cur, slug: str) -> str:
     """Insert a brand owned by the system user; return its id. Runs in ``cur``'s tx."""
     owner_id = _ensure_system_user(cur)

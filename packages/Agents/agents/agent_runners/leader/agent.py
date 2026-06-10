@@ -104,6 +104,7 @@ def load_full_state(brand_id: str) -> dict:
         "brand_id": brand_id,
         "niche": niche,
         "active": active,
+        "goals": db.leader_goals_for(brand_id),
         "joined_communities": comm.get("joined", 0),
         "pending_communities": comm.get("pending_join", 0),
         "unassigned_joined": unassigned_joined,
