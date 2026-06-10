@@ -169,8 +169,10 @@ export function AgentConfigForm({
           </div>
         ) : null}
 
-        {/* Persona Description — hidden for the Search and Leader agents */}
-        {agentType !== "search" && agentType !== "leader" ? (
+        {/* Persona Description — hidden for the Search, Leader, and Research agents */}
+        {agentType !== "search" &&
+        agentType !== "leader" &&
+        agentType !== "research" ? (
           <div className="flex flex-col gap-2">
             <Label htmlFor={`${agentType}-persona-desc`}>
               Persona Description
@@ -310,8 +312,10 @@ export function AgentConfigForm({
         </section>
       ) : null}
 
-      {/* FINE-TUNING — hidden for the Leader agent */}
-      {agentType !== "leader" ? (
+      {/* FINE-TUNING — hidden for the Leader, Search, and Research agents */}
+      {agentType !== "leader" &&
+      agentType !== "search" &&
+      agentType !== "research" ? (
         <section className="flex flex-col gap-4">
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
