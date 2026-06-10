@@ -1,0 +1,20 @@
+# Keep Docker build contexts small & secret-free.
+# Applies to the repo-root build context (the Hono image).
+**/node_modules
+**/.venv
+**/venv
+**/dist
+**/.next
+**/.turbo
+**/cdk.out
+**/coverage
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+.git
+.gitignore
+# Never bake secrets into an image — env is injected at runtime via env_file.
+**/.env
+**/.env.*
+!**/.env.example
+LinodeVM
