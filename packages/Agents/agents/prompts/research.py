@@ -16,6 +16,7 @@ back to people.
 from __future__ import annotations
 
 from agents.constants.research import MAX_CHARS_PER_ITEM, MAX_ITEMS_PER_PASS
+from agents.prompts._shared import guidance_block, knowledge_block
 from agents.schemas.research import ConversationRecord, GroupMemberRecord
 
 _BANDS = (
@@ -24,7 +25,13 @@ _BANDS = (
 )
 
 
-def render_inbound_prompt(niche: str, convos: list[ConversationRecord]) -> str:
+def render_inbound_prompt(
+    niche: str,
+    convos: list[ConversationRecord],
+    *,
+    guidance: str = "",
+    knowledge: str = "",
+) -> str:
     """Score inbound conversations → people who showed interest."""
     rows = []
     for c in convos[:MAX_ITEMS_PER_PASS]:
@@ -33,7 +40,9 @@ def render_inbound_prompt(niche: str, convos: list[ConversationRecord]) -> str:
     corpus = "\n".join(rows) if rows else "(no conversations)"
 
     return (
-        "You are the Research agent (inbound pass) for a brand. From the recent "
+        guidance_block(guidance)
+        + knowledge_block(knowledge)
+        + "You are the Research agent (inbound pass) for a brand. From the recent "
         "messages below, score each distinct person on how genuinely interested "
         "they are in what the brand offers — a real question, a pain point, or "
         "buying intent scores high; idle chatter scores low.\n\n"
@@ -46,7 +55,13 @@ def render_inbound_prompt(niche: str, convos: list[ConversationRecord]) -> str:
     )
 
 
-def render_outbound_prompt(niche: str, members: list[GroupMemberRecord]) -> str:
+def render_outbound_prompt(
+    niche: str,
+    members: list[GroupMemberRecord],
+    *,
+    guidance: str = "",
+    knowledge: str = "",
+) -> str:
     """Score cold group members → outbound prospects."""
     rows = []
     for m in members[:MAX_ITEMS_PER_PASS]:
@@ -57,7 +72,9 @@ def render_outbound_prompt(niche: str, members: list[GroupMemberRecord]) -> str:
     corpus = "\n".join(rows) if rows else "(no members)"
 
     return (
-        "You are the Research agent (outbound pass) for a brand. These are cold "
+        guidance_block(guidance)
+        + knowledge_block(knowledge)
+        + "You are the Research agent (outbound pass) for a brand. These are cold "
         "group members (they have not contacted us). Score each on how good a "
         "prospect they are for the brand, judging from bio relevance, apparent "
         "activity, and niche fit.\n\n"

@@ -13,13 +13,16 @@ opening, and any reply must read as a private DM, not a public group blast
 
 from __future__ import annotations
 
+from agents.prompts._shared import guidance_block, knowledge_block
 from agents.schemas.talk import TalkContext
 
 # Cap recent-context size to keep token use sane.
 _MAX_RECENT = 8
 
 
-def render_talk_prompt(ctx: TalkContext) -> str:
+def render_talk_prompt(
+    ctx: TalkContext, *, guidance: str = "", knowledge: str = ""
+) -> str:
     """Build the Talk agent's per-message decision prompt from ``ctx``."""
     recent = ctx.recent_messages[-_MAX_RECENT:]
     if recent:
@@ -35,7 +38,9 @@ def render_talk_prompt(ctx: TalkContext) -> str:
     niche = ctx.brand_niche or "(niche not specified)"
 
     return (
-        "You are the Talk agent: a real-sounding member of a Telegram group who "
+        guidance_block(guidance)
+        + knowledge_block(knowledge)
+        + "You are the Talk agent: a real-sounding member of a Telegram group who "
         f"speaks as {persona}. The brand's niche is: {niche}.\n\n"
         "You react to ONE new group message. Your default is SILENCE. Most chatter "
         "needs no reply — greetings, banter, and off-topic talk should get "

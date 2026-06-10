@@ -24,9 +24,11 @@ import hashlib
 import logging
 from datetime import datetime, timezone
 
+from agents.constants.defaults import default_system_prompt
 from agents.constants.sales import ACTION_DECIDED, ACTION_SENT
 from agents.lib import guardrails
 from agents.lib.config import settings
+from agents.lib.db import system_prompt_for
 from agents.lib.llm import brain
 from agents.lib.store import LeadStore, ProfileStore
 from agents.prompts.sales import render_sales_prompt
@@ -53,7 +55,8 @@ def _dedup_key(ctx: SalesContext) -> str:
 
 def _decide_with_llm(ctx: SalesContext, profile: BrandProfile) -> SalesDecision:
     """DECIDE step: one structured LLM call. Raises on any LLM/transport error."""
-    return brain(SalesDecision).invoke(render_sales_prompt(ctx, profile))
+    guidance = system_prompt_for(ctx.brand_id, "sales") or default_system_prompt("sales")
+    return brain(SalesDecision).invoke(render_sales_prompt(ctx, profile, guidance=guidance))
 
 
 def decide_reply(ctx: SalesContext, *, account_active: bool = True) -> SalesReply:

@@ -182,19 +182,44 @@ def search_queries_for(brand_ref: str) -> list[str]:
     return list(row[0]) if row and row[0] else []
 
 
-def leader_goals_for(brand_ref: str) -> str:
-    """Return the Leader agent's operator-set goals for a brand.
+def system_prompt_for(brand_ref: str, agent_type: str = "leader") -> str:
+    """Return an agent's operator-set system prompt / instructions for a brand.
 
-    Reads the ``systemPrompt`` column off the brand's ``agent_config`` row
-    (agentType = 'leader'), set via the dashboard's Leader Goals form. Returns
-    an empty string when no config row exists or the field is unset, so the
-    prompt can omit the goals section entirely.
+    Reads the ``systemPrompt`` column off the brand's ``agent_config`` row for
+    ``agent_type`` (the Leader's is surfaced as 'Leader Goals' on the dashboard,
+    the rest as 'Custom System Prompt Override'). Returns an empty string when no
+    config row exists or the field is unset, so callers can fall back to a
+    generic per-role default.
     """
     with cursor() as cur:
         cur.execute(
             'SELECT "systemPrompt" FROM agent_config '
-            "WHERE \"brandId\" = %s AND \"agentType\" = 'leader' LIMIT 1",
-            (resolve_brand_id(brand_ref),),
+            'WHERE "brandId" = %s AND "agentType" = %s::"AgentType" LIMIT 1',
+            (resolve_brand_id(brand_ref), agent_type),
+        )
+        row = cur.fetchone()
+    return (row[0] or "").strip() if row else ""
+
+
+def leader_goals_for(brand_ref: str) -> str:
+    """The Leader's operator-set goals — the 'leader' row's ``systemPrompt``."""
+    return system_prompt_for(brand_ref, "leader")
+
+
+def knowledge_base_for(brand_ref: str, agent_type: str = "leader") -> str:
+    """Return an agent's operator-set knowledge base for a brand.
+
+    Reads the ``knowledgeBase`` column off the brand's ``agent_config`` row
+    (product info, FAQs, brand guidelines), set via the dashboard's Agent Config
+    form. Defaults to the Leader's row; pass ``agent_type`` to reuse for other
+    agents (Talk/Sales). Returns an empty string when no config row exists or the
+    field is unset, so the prompt can omit the knowledge section entirely.
+    """
+    with cursor() as cur:
+        cur.execute(
+            'SELECT "knowledgeBase" FROM agent_config '
+            'WHERE "brandId" = %s AND "agentType" = %s::"AgentType" LIMIT 1',
+            (resolve_brand_id(brand_ref), agent_type),
         )
         row = cur.fetchone()
     return (row[0] or "").strip() if row else ""

@@ -21,9 +21,11 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
+from agents.constants.defaults import default_system_prompt
 from agents.constants.talk import (ACTION_DECIDED, ACTION_REPLIED,
                                     MAX_GROUP_REPLIES_PER_DAY, interest_level)
 from agents.lib import guardrails
+from agents.lib.db import knowledge_base_for, system_prompt_for
 from agents.lib.llm import brain
 from agents.lib.store import LeadStore
 from agents.prompts.talk import render_talk_prompt
@@ -37,7 +39,11 @@ AGENT_TYPE = "talk"
 
 def _decide_with_llm(ctx: TalkContext) -> ReplyDecision:
     """DECIDE step: one structured LLM call. Raises on any LLM/transport error."""
-    return brain(ReplyDecision).invoke(render_talk_prompt(ctx))
+    guidance = system_prompt_for(ctx.brand_id, "talk") or default_system_prompt("talk")
+    knowledge = knowledge_base_for(ctx.brand_id, "talk")
+    return brain(ReplyDecision).invoke(
+        render_talk_prompt(ctx, guidance=guidance, knowledge=knowledge)
+    )
 
 
 def _save_lead(ctx: TalkContext, decision: ReplyDecision, now: str) -> bool:
