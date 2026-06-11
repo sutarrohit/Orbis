@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Target } from "lucide-react";
 
 import { listLeadsQueryOptions } from "@/lib/api/leads/leads-queries";
+import { listCommunitiesQueryOptions } from "@/lib/api/communities/communities-queries";
+import { buildCommunityChatMap, communityLabel } from "@/lib/community-source";
 import type { LeadStatus } from "@/lib/api/enums";
 import { EmptyState, ErrorState, TableLoadingRows } from "@/components/data/data-states";
 import { StatusBadge } from "@/components/data/status-badge";
@@ -32,6 +34,8 @@ export default function LeadsPage() {
 
   const { data: allLeads } = useQuery(listLeadsQueryOptions());
   const { data, isPending, isError, refetch } = useQuery(listLeadsQueryOptions(params));
+  const { data: communities } = useQuery(listCommunitiesQueryOptions());
+  const communityByChat = useMemo(() => buildCommunityChatMap(communities), [communities]);
   const counts = data?.counts ?? allLeads?.counts;
   const totalCount = counts ? Object.values(counts).reduce((sum, n) => sum + n, 0) : 0;
 
@@ -77,13 +81,14 @@ export default function LeadsPage() {
                 <TableHead>Score</TableHead>
                 <TableHead>Interest</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Community</TableHead>
                 <TableHead>Source</TableHead>
                 <TableHead>Last outreach</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isPending ? (
-                <TableLoadingRows columns={6} />
+                <TableLoadingRows columns={7} />
               ) : (
                 data?.data.map((lead) => (
                   <TableRow
@@ -98,6 +103,9 @@ export default function LeadsPage() {
                     </TableCell>
                     <TableCell>
                       <StatusBadge kind='lead' value={lead.status} />
+                    </TableCell>
+                    <TableCell className='text-muted-foreground'>
+                      {communityLabel(communityByChat, lead.sourceGroupChatId)}
                     </TableCell>
                     <TableCell className='capitalize text-muted-foreground'>{lead.source}</TableCell>
                     <TableCell className='text-muted-foreground'>

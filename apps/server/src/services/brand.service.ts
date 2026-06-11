@@ -38,8 +38,9 @@ export async function updateBrandForUser(userId: string, data: UpdateBrandInput)
     throw new ApiError(NOT_FOUND, "BRAND_NOT_FOUND", "No brand found for this user");
   }
 
-  const { persona, productSummary, pricing, conversionAction, objectionNotes, ...brandFields } = data;
-  const profileFields = { persona, productSummary, pricing, conversionAction, objectionNotes };
+  const { persona, productSummary, pricing, conversionAction, objectionNotes, website, about, ...brandFields } =
+    data;
+  const profileFields = { persona, productSummary, pricing, conversionAction, objectionNotes, website, about };
   const hasProfileUpdate = Object.values(profileFields).some((v) => v !== undefined);
 
   return prisma.brand.update({

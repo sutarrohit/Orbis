@@ -391,7 +391,7 @@ class ProfileStore:
 
     _COLUMNS = (
         '"brandId", persona, "productSummary", pricing, "conversionAction", '
-        '"objectionNotes"'
+        '"objectionNotes", website, about'
     )
 
     @staticmethod
@@ -403,6 +403,8 @@ class ProfileStore:
             pricing=r[3],
             conversion_action=r[4],
             objection_notes=r[5],
+            website=r[6],
+            about=r[7],
         )
 
     def all(self) -> list[BrandProfile]:

@@ -287,7 +287,8 @@ async function main() {
       currentTask:
         i === 0 ? "Coordinating outreach cycle" : i === 4 ? "Rate limited by platform" : "",
       startedAt: i === 0 ? minsAgo(5) : null
-    }))
+    })),
+    skipDuplicates: true // brand may already have real agent_state rows
   });
 
   // ── Agent configs (one per agent type) ──────────────────────────────────────
@@ -353,7 +354,8 @@ async function main() {
         behaviorRules: ["Summarize lead signals accurately"],
         bannedTopics: []
       }
-    ]
+    ],
+    skipDuplicates: true // brand may already have real agent_config rows
   });
 
   // ── Agent activity feed ─────────────────────────────────────────────────────

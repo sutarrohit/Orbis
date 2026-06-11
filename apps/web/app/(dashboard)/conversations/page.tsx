@@ -6,6 +6,7 @@ import { MessagesSquare } from "lucide-react";
 
 import { listConversationsQueryOptions } from "@/lib/api/conversations/conversation-queries";
 import { listCommunitiesQueryOptions } from "@/lib/api/communities/communities-queries";
+import { buildCommunityChatMap } from "@/lib/community-source";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data/data-states";
 import { formatRelativeTime } from "@/lib/format";
 import { Input } from "@/components/ui/input";
@@ -21,14 +22,9 @@ export default function ConversationsPage() {
   const { data, isPending, isError, refetch } = useQuery(listConversationsQueryOptions(params));
   const { data: communities } = useQuery(listCommunitiesQueryOptions());
 
-  // Map groupChatId -> community name for nicer labels, and the filter options.
-  const namesByChat = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const c of communities ?? []) {
-      if (c.groupChatId) map.set(c.groupChatId, c.name || c.handle);
-    }
-    return map;
-  }, [communities]);
+  // Map chat id -> community name (incl. a channel's linked discussion group, so
+  // messages captured there resolve to the channel) for labels + filter options.
+  const namesByChat = useMemo(() => buildCommunityChatMap(communities), [communities]);
 
   const communityOptions = useMemo(
     () => (communities ?? []).filter((c) => c.groupChatId),

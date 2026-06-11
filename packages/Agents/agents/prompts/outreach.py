@@ -26,7 +26,17 @@ def render_outreach_prompt(
     product = profile.product_summary if profile else ""
     pricing = profile.pricing if profile else ""
     cta = profile.conversion_action if profile else ""
+    website = profile.website if profile else ""
+    about = profile.about if profile else ""
     pains = ", ".join(pain_points) if pain_points else ""
+
+    about_block = f"\n- About / extra facts: {about}" if about else ""
+    website_line = (
+        f"- Website (you MAY share this link only when it fits naturally as the next "
+        f"step — never force it into every message): {website}"
+        if website
+        else "- Website: (none — do not invent or imply a link)"
+    )
 
     if is_followup:
         intent = (
@@ -43,6 +53,7 @@ BRAND (the only facts you may state)
 - Product: {product}
 - Pricing (state only these facts; if empty, never mention a price): {pricing}
 - Goal — the single soft next step to invite: {cta}
+{website_line}{about_block}
 
 LEAD
 - Handle: {username}
@@ -55,5 +66,7 @@ RULES (regenerate the draft if it violates any of these)
 - 2-5 sentences, under 120 words, plain text, no emojis.
 - No hype, guarantees, fake urgency, or repeated calls to action.
 - At most one question.
-- Never invent pricing, features, or claims not given above.
+- Share the website link only if it reads as a natural next step — never in every
+  message and never as a bare URL dump. Most first DMs should omit it.
+- Never invent pricing, features, links, or claims not given above.
 """

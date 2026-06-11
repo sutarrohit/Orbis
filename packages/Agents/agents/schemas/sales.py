@@ -66,6 +66,14 @@ class BrandProfile(BaseModel):
     objection_notes: str = Field(
         default="", description="Pre-approved answers to common objections."
     )
+    website: str = Field(
+        default="",
+        description="Brand website/landing page; share in DMs only when relevant.",
+    )
+    about: str = Field(
+        default="",
+        description="Free-text about/knowledge base; the model may speak from this.",
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────

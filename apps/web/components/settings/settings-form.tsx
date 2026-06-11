@@ -39,7 +39,9 @@ export function SettingsForm({ brand }: { brand: Brand }) {
     productSummary: profile?.productSummary ?? "",
     pricing: profile?.pricing ?? "",
     conversionAction: profile?.conversionAction ?? "",
-    objectionNotes: profile?.objectionNotes ?? ""
+    objectionNotes: profile?.objectionNotes ?? "",
+    website: profile?.website ?? "",
+    about: profile?.about ?? ""
   });
 
   const [voiceTags, setVoiceTags] = useState<string[]>(() => parseTags(profile?.pricing ?? ""));
@@ -132,6 +134,34 @@ export function SettingsForm({ brand }: { brand: Brand }) {
               value={form.productSummary ?? ""}
               onChange={(e) => set("productSummary", e.target.value)}
               rows={3}
+            />
+          </div>
+
+          {/* Website */}
+          <div className='flex flex-col gap-2'>
+            <Label htmlFor='website'>Website</Label>
+            <Input
+              id='website'
+              type='url'
+              inputMode='url'
+              placeholder='https://yourbrand.com'
+              value={form.website ?? ""}
+              onChange={(e) => set("website", e.target.value)}
+            />
+            <span className='text-xs text-muted-foreground'>
+              The agent may share this link in DMs when it fits naturally.
+            </span>
+          </div>
+
+          {/* About / Knowledge */}
+          <div className='flex flex-col gap-2'>
+            <Label htmlFor='about'>About / Knowledge</Label>
+            <Textarea
+              id='about'
+              value={form.about ?? ""}
+              onChange={(e) => set("about", e.target.value)}
+              rows={4}
+              placeholder='Company info, key facts, FAQs — anything the agent may mention. It only speaks from what you put here.'
             />
           </div>
 
