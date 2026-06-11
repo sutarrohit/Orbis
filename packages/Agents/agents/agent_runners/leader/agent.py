@@ -252,7 +252,19 @@ def execute_node(state: LeaderState) -> LeaderState:
     result.learnings_saved = _save_learnings(brand_id, plan.new_learnings)
 
     # Spawn workers — re-check the running guard (never double-run, §6/§11).
-    if plan.spawn_search and not guardrails.is_running(brand_id, "search"):
+    # Skip Search when there is already a backlog of discovered-but-unjoined
+    # communities (status=pending_join): no point discovering more until the
+    # gateway joins the ones we already have. Just move on to the next steps
+    # (assign → join → research → outbound).
+    pending_unjoined = snap.get("pending_communities", 0)
+    if plan.spawn_search and pending_unjoined > 0:
+        logger.info(
+            "Leader: %d community(ies) pending_join for brand=%s; skipping Search.",
+            pending_unjoined,
+            brand_id,
+        )
+        result.search_skipped_pending = pending_unjoined
+    elif plan.spawn_search and not guardrails.is_running(brand_id, "search"):
         run_search(snap.get("niche", ""), brand_id=brand_id)
         result.spawned_search = True
     if plan.spawn_research and not guardrails.is_running(brand_id, "research"):

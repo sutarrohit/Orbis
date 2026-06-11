@@ -125,8 +125,16 @@ async def join_and_scrape_once(clients, *, pace: float = 0.0) -> dict:
             # visible, otherwise the listener captures whoever comments there.
             linked_id = await _join_linked_discussion(client, chat)
             if linked_id is None:
+                # Resolved, but no linked group — record the sentinel so the
+                # Members view/backfill don't keep looking for one.
+                await asyncio.to_thread(communities.set_discussion_chat, c["id"], "none")
                 note = "channel — members admin-only (monitor only)"
             else:
+                # Members get stored under the linked group's id; record it so the
+                # dashboard can list this channel's members.
+                await asyncio.to_thread(
+                    communities.set_discussion_chat, c["id"], str(linked_id)
+                )
                 try:
                     members = await _scrape_members(
                         client, linked_id, c["brand_id"], str(linked_id)
@@ -205,6 +213,45 @@ async def leave_pending_once(clients) -> int:
     return left
 
 
+async def backfill_discussion_ids(clients) -> int:
+    """One-off, self-terminating: for channels joined before discussionChatId
+    existed, resolve their linked discussion group, record its id, and (re)scrape
+    its roster — so the dashboard's Members view can find members that were stored
+    under the linked group's id. Once every joined channel is resolved the backing
+    query returns nothing and this is a no-op.
+    """
+    communities = CommunityStore()
+    todo = await asyncio.to_thread(communities.joined_missing_discussion)
+    fixed = 0
+    for c in todo:
+        gid = c["group_chat_id"]
+        entry = clients.get(c["assigned_account_id"]) if c["assigned_account_id"] else None
+        if not gid or entry is None:
+            continue  # account not connected — try again next pass
+        client = entry["client"]
+        try:
+            chat = await client.get_chat(int(gid))
+        except Exception as exc:
+            logger.info("Backfill: could not fetch chat %s: %s", gid, exc)
+            continue
+        linked = getattr(chat, "linked_chat", None)
+        if linked is None:
+            # Not a channel / no discussion group — mark resolved so we stop checking.
+            await asyncio.to_thread(communities.set_discussion_chat, c["id"], "none")
+            fixed += 1
+            continue
+        linked_id = str(linked.id)
+        await asyncio.to_thread(communities.set_discussion_chat, c["id"], linked_id)
+        try:
+            members = await _scrape_members(client, linked.id, c["brand_id"], linked_id)
+            if members:
+                await asyncio.to_thread(GroupMemberStore().upsert_many, members)
+        except Exception as exc:  # roster may be admin-only — members already linked
+            logger.info("Backfill scrape of %s failed (ok): %s", linked_id, exc)
+        fixed += 1
+    return fixed
+
+
 async def run_joiner(clients, *, stop_event: asyncio.Event | None = None) -> None:
     """Poll-join-scrape (and process removals) forever (until ``stop_event``)."""
     while stop_event is None or not stop_event.is_set():
@@ -215,6 +262,9 @@ async def run_joiner(clients, *, stop_event: asyncio.Event | None = None) -> Non
             removed = await leave_pending_once(clients)
             if removed:
                 logger.info("leaver pass: removed %d community(ies).", removed)
+            filled = await backfill_discussion_ids(clients)
+            if filled:
+                logger.info("backfill: linked %d channel(s) to their discussion group.", filled)
         except Exception as exc:  # never let the loop die
             logger.exception("joiner loop error: %s", exc)
         await asyncio.sleep(JOIN_POLL_INTERVAL)

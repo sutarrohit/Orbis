@@ -10,6 +10,8 @@ export const BrandProfileSchema = z
     pricing: z.string(),
     conversionAction: z.string(),
     objectionNotes: z.string(),
+    website: z.string(),
+    about: z.string(),
     createdAt: dateField(),
     updatedAt: dateField()
   })
@@ -48,7 +50,9 @@ export const UpdateBrandSchema = z
     productSummary: z.string().optional(),
     pricing: z.string().optional(),
     conversionAction: z.string().optional(),
-    objectionNotes: z.string().optional()
+    objectionNotes: z.string().optional(),
+    website: z.string().optional(),
+    about: z.string().optional()
   })
   .openapi("UpdateBrand");
 

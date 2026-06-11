@@ -9,6 +9,8 @@ export interface BrandProfile {
   pricing: string;
   conversionAction: string;
   objectionNotes: string;
+  website: string;
+  about: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -42,6 +44,8 @@ export interface UpdateBrandInput {
   pricing?: string;
   conversionAction?: string;
   objectionNotes?: string;
+  website?: string;
+  about?: string;
 }
 
 export function getBrand(): Promise<{ brand: Brand | null }> {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -7,6 +8,8 @@ import { ArrowLeft } from "lucide-react";
 
 import { leadQueryOptions } from "@/lib/api/leads/leads-queries";
 import { listAccountsQueryOptions } from "@/lib/api/accounts/accounts-queries";
+import { listCommunitiesQueryOptions } from "@/lib/api/communities/communities-queries";
+import { buildCommunityChatMap, communityLabel } from "@/lib/community-source";
 import { LeadEditor } from "@/components/leads/lead-editor";
 import { SendDmCard } from "@/components/leads/send-dm-card";
 import { TranscriptCard } from "@/components/leads/transcript-card";
@@ -23,6 +26,8 @@ export default function LeadDetailPage() {
 
   const { data: lead, isPending, isError, refetch } = useQuery(leadQueryOptions(id));
   const { data: accounts } = useQuery(listAccountsQueryOptions());
+  const { data: communities } = useQuery(listCommunitiesQueryOptions());
+  const communityByChat = useMemo(() => buildCommunityChatMap(communities), [communities]);
 
   return (
     <main className='flex flex-1 flex-col gap-4 p-4'>
@@ -69,6 +74,10 @@ export default function LeadDetailPage() {
                 <div className='flex justify-between'>
                   <span className='text-muted-foreground'>Interest</span>
                   <StatusBadge kind='interest' value={lead.interestLevel} />
+                </div>
+                <div className='flex justify-between'>
+                  <span className='text-muted-foreground'>Community</span>
+                  <span>{communityLabel(communityByChat, lead.sourceGroupChatId)}</span>
                 </div>
                 <div className='flex justify-between'>
                   <span className='text-muted-foreground'>Source</span>

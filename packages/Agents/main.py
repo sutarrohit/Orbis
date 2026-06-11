@@ -9,7 +9,6 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from scalar_fastapi import get_scalar_api_reference
 
 from agents.lib.auth import require_service_auth
-from agents.lib.config import settings
 from agents.lib.console import ensure_utf8_stdio
 from agents.scheduler import shutdown_scheduler, start_scheduler
 from errors.errors import PredictionAPIError
@@ -23,12 +22,13 @@ ensure_utf8_stdio()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # The clock (§10): fire the Leader + follow-up sweep on an interval.
-    # Off unless SCHEDULER_ENABLED=true, so importing the app never starts timers.
-    if settings.scheduler_enabled:
-        start_scheduler()
+    # Always start the scheduler — its config-watch job reads the DB
+    # (scheduler_config) and only runs the leader/follow-up jobs when the
+    # dashboard has enabled autonomy. (Lifespan runs on real startup, not on
+    # import, so importing the app still never starts timers.)
+    start_scheduler()
     yield
-    if settings.scheduler_enabled:
-        shutdown_scheduler()
+    shutdown_scheduler()
 
 
 app = FastAPI(

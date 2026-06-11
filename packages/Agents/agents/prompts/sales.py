@@ -39,6 +39,13 @@ def render_sales_prompt(
         else ""
     )
     conversion = profile.conversion_action or "the agreed next step"
+    about = f"\nABOUT / KNOWLEDGE (speak only from this):\n{profile.about}" if profile.about else ""
+    website = (
+        f"\nWEBSITE (share this link only when it's a natural next step, not every "
+        f"message): {profile.website}"
+        if profile.website
+        else ""
+    )
     lead = ctx.username or ctx.lead_user_id
 
     return (
@@ -47,10 +54,10 @@ def render_sales_prompt(
         f"Speak as: {profile.persona or 'a helpful, low-pressure account rep'}.\n\n"
         f"PRODUCT:\n{profile.product_summary or '(not provided)'}\n\n"
         f"PRICING (the only prices you may quote):\n{pricing}\n\n"
-        f"CONVERSION ACTION (guide them here): {conversion}{objections}\n\n"
+        f"CONVERSION ACTION (guide them here): {conversion}{objections}{about}{website}\n\n"
         "Run the sales motion and move the lead ONE step: qualify -> present -> "
         "handle objection -> close. Speak ONLY from the facts above — never invent "
-        "pricing, features, or guarantees. Sound human: address what they said, give "
+        "pricing, features, links, or guarantees. Sound human: address what they said, give "
         "one value point, then one soft next step. 2-5 sentences, under 120 words, "
         "plain text, no emojis, no hype, no fake urgency, at most one question.\n\n"
         "Also set new_status: 'converted' ONLY on a clear conversion (they took/agreed "
