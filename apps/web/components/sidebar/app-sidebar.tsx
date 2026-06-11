@@ -23,6 +23,7 @@ import {
   LayoutDashboard,
   Activity,
   Bot,
+  BookOpen,
   CircleUser,
   Users,
   Target,
@@ -43,6 +44,7 @@ const data = {
       url: "/",
       icon: LayoutDashboard
     },
+
     {
       title: "Activity",
       url: "/activity",
@@ -87,6 +89,11 @@ const data = {
       title: "Settings",
       url: "/settings",
       icon: Settings
+    },
+    {
+      title: "How to Use",
+      url: "/how-to",
+      icon: BookOpen
     }
   ],
   navMain: [
