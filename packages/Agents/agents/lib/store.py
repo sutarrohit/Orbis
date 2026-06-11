@@ -175,6 +175,40 @@ class CommunityStore:
                 (note, community_id),
             )
 
+    def set_discussion_chat(self, community_id: str, discussion_chat_id: str) -> None:
+        """Record a channel's linked discussion group id (members live under it).
+
+        Use the sentinel ``"none"`` to mark "resolved, channel has no group" so the
+        backfill doesn't keep re-checking it.
+        """
+        with db.cursor() as cur:
+            cur.execute(
+                'UPDATE community SET "discussionChatId" = %s, "updatedAt" = now() '
+                "WHERE id = %s",
+                (discussion_chat_id, community_id),
+            )
+
+    def joined_missing_discussion(self, limit: int = 20) -> list[dict]:
+        """Joined communities whose linked discussion group hasn't been resolved yet
+        (``discussionChatId = ''``). Returns dicts: ``id``, ``brand_id``,
+        ``group_chat_id``, ``assigned_account_id``. Used by the one-off backfill."""
+        with db.cursor() as cur:
+            cur.execute(
+                'SELECT id, "brandId", "groupChatId", "assignedAccountId" FROM community '
+                'WHERE status = %s::"CommunityStatus" AND "discussionChatId" = %s '
+                'AND "groupChatId" <> %s AND "assignedAccountId" IS NOT NULL LIMIT %s',
+                ("joined", "", "", limit),
+            )
+            return [
+                {
+                    "id": r[0],
+                    "brand_id": r[1],
+                    "group_chat_id": r[2],
+                    "assigned_account_id": r[3],
+                }
+                for r in cur.fetchall()
+            ]
+
     def pending_leave(self, limit: int = 10) -> list[dict]:
         """Communities the dashboard flagged for removal (``pendingLeave=true``).
 

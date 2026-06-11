@@ -250,6 +250,11 @@ model Community {
   foundVia          String          @default("llm")
   sourceUrl         String          @default("")
   groupChatId       String          @default("")
+  /// For broadcast channels: the chat id of the linked discussion group whose
+  /// roster/commenters we actually scrape. Members are stored under THIS id, not
+  /// groupChatId, so the dashboard needs it to list a channel's members. Empty =
+  /// not a channel / not yet resolved; "none" = resolved, channel has no group.
+  discussionChatId  String          @default("")
   /// Gateway note about the community, e.g. why members couldn't be scraped
   /// ("channel — members admin-only") or "scraped N members".
   note              String          @default("")
@@ -431,4 +436,20 @@ model AgentConfig {
   @@unique([brandId, agentType])
   @@index([brandId])
   @@map("agent_config")
+}
+
+/// Global autonomous-scheduler config (singleton row, id="global"). Lets the
+/// dashboard drive the Leader clock instead of env vars: the Python scheduler
+/// reads this row and a ~1-min watcher applies on/off + interval changes live.
+model SchedulerConfig {
+  id                      String   @id @default("global")
+  enabled                 Boolean  @default(false)
+  /// How often the full Leader cycle runs.
+  leaderIntervalMinutes   Int      @default(5)
+  /// How often the outbound follow-up sweep runs on its own.
+  followupIntervalMinutes Int      @default(15)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@map("scheduler_config")
 }

@@ -46,6 +46,12 @@ export function GroupMembersDialog({ community }: { community: Community }) {
   const [open, setOpen] = useState(false);
   const disabled = !community.groupChatId;
 
+  // A channel's members are stored under its linked discussion group's id, so
+  // query both (the API filters by any of the comma-separated ids).
+  const chatIds = [community.groupChatId, community.discussionChatId]
+    .filter((id) => id && id !== "none")
+    .join(",");
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -59,7 +65,7 @@ export function GroupMembersDialog({ community }: { community: Community }) {
           <DialogDescription>Scraped members of this group.</DialogDescription>
         </DialogHeader>
         {/* Rendered only while open, so the query runs on demand. */}
-        <GroupMembersList chatId={community.groupChatId} />
+        <GroupMembersList chatId={chatIds} />
       </DialogContent>
     </Dialog>
   );

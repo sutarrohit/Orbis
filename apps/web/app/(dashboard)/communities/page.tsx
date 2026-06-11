@@ -21,6 +21,14 @@ const TABS: { value: CommunityStatus | "all"; label: string }[] = [
   { value: "rejected", label: "Rejected" }
 ];
 
+// Show joined communities first, then pending, then rejected. The list arrives
+// newest-first; a stable sort keeps that order within each status group.
+const STATUS_ORDER: Record<CommunityStatus, number> = {
+  joined: 0,
+  pending_join: 1,
+  rejected: 2
+};
+
 export default function CommunitiesPage() {
   const [tab, setTab] = useState<CommunityStatus | "all">("all");
   const params = tab === "all" ? {} : { status: tab };
@@ -28,6 +36,10 @@ export default function CommunitiesPage() {
   const { data: allCommunities } = useQuery(listCommunitiesQueryOptions());
   const { data, isPending, isError, refetch } = useQuery(listCommunitiesQueryOptions(params));
   const { data: accounts } = useQuery(listAccountsQueryOptions());
+
+  // Sort joined-first for display (only matters on the "All" tab; single-status
+  // tabs are unaffected since every row shares a status).
+  const rows = data ? [...data].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]) : data;
 
   return (
     <main className='flex flex-1 flex-col gap-4 p-4'>
@@ -77,7 +89,7 @@ export default function CommunitiesPage() {
               {isPending ? (
                 <TableLoadingRows columns={5} />
               ) : (
-                data?.map((community) => (
+                rows?.map((community) => (
                   <CommunityRow key={community.id} community={community} accounts={accounts ?? []} />
                 ))
               )}

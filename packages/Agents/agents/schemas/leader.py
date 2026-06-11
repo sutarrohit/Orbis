@@ -67,6 +67,7 @@ class LeaderCycleResult(BaseModel):
     brand_id: str
     used_llm: bool = False
     spawned_search: bool = False
+    search_skipped_pending: int = 0
     spawned_research: bool = False
     communities_assigned: int = 0
     gateway_actions_applied: int = 0

@@ -12,6 +12,7 @@ import { learningsRouter } from "./routes/learnings/index.js";
 import { usageRouter } from "./routes/usage/index.js";
 import { agentStateRouter } from "./routes/agent-state/index.js";
 import { agentConfigRouter } from "./routes/agent-config/index.js";
+import { schedulerConfigRouter } from "./routes/scheduler-config/index.js";
 import { agentsRouter } from "./routes/agents/index.js";
 import { webhooksRouter } from "./routes/webhooks/index.js";
 
@@ -47,6 +48,7 @@ const v1 = [
   usageRouter,
   agentStateRouter,
   agentConfigRouter,
+  schedulerConfigRouter,
   agentsRouter
 ] as const;
 for (const router of v1) {
