@@ -47,6 +47,12 @@ export const VerifyPasswordInputSchema = z
   .object({ phone: z.string().min(1), password: z.string().min(1) })
   .openapi("VerifyPasswordInput");
 
+// ─── Account connect (Discord bot — single step) ─────────────────────────────
+
+export const ConnectBotInputSchema = z
+  .object({ token: z.string().min(1) })
+  .openapi("ConnectBotInput");
+
 export const SetAccountStatusInputSchema = z
   .object({ status: z.enum(["active", "paused", "restricted"]) })
   .openapi("SetAgentAccountStatusInput");
@@ -118,6 +124,7 @@ export type DecideContext = z.infer<typeof DecideContextSchema>;
 export type SendCodeInput = z.infer<typeof SendCodeInputSchema>;
 export type VerifyCodeInput = z.infer<typeof VerifyCodeInputSchema>;
 export type VerifyPasswordInput = z.infer<typeof VerifyPasswordInputSchema>;
+export type ConnectBotInput = z.infer<typeof ConnectBotInputSchema>;
 export type SearchRunResult = z.infer<typeof SearchRunResultSchema>;
 export type AgentRunResult = z.infer<typeof AgentRunResultSchema>;
 export type RecordList = z.infer<typeof RecordListSchema>;

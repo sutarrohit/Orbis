@@ -11,6 +11,7 @@ import {
   AgentAccountListSchema,
   AgentAccountViewSchema,
   AgentRunResultSchema,
+  ConnectBotInputSchema,
   DecideContextSchema,
   DecideQuerySchema,
   LeaderRunInputSchema,
@@ -170,6 +171,16 @@ const verifyPassword = createRoute({
   responses: { [OK]: jsonContent(LoginStepResultSchema, "Login step result"), ...upstreamError }
 });
 
+const connectBot = createRoute({
+  method: "post",
+  path: "/agents/accounts/connect-bot",
+  tags,
+  security: protectedSecurity,
+  summary: "Connect a Discord bot — submit the bot token",
+  request: { body: jsonContentRequired(ConnectBotInputSchema, "Discord bot token") },
+  responses: { [OK]: jsonContent(LoginStepResultSchema, "Login step result"), ...upstreamError }
+});
+
 // ─── Account management ──────────────────────────────────────────────────────
 
 const listAccounts = createRoute({
@@ -230,6 +241,7 @@ export const agentsRouter = router
   .openapi(verifyPassword, async (c) =>
     c.json(await agentsService.verifyPassword(ctxOf(c), c.req.valid("json")), OK)
   )
+  .openapi(connectBot, async (c) => c.json(await agentsService.connectBot(ctxOf(c), c.req.valid("json")), OK))
   .openapi(listAccounts, async (c) => c.json(await agentsService.listAgentAccounts(ctxOf(c)), OK))
   .openapi(setAccountStatus, async (c) =>
     c.json(
