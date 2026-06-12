@@ -37,10 +37,21 @@ async def handle_dead_account(clients, account_id: str, reason: str = "") -> Non
 
 
 async def run_health_check(clients, *, stop_event: asyncio.Event | None = None) -> None:
-    """Periodically ping each client (``get_me``); stamp health, drop dead ones."""
+    """Periodically ping each client (``get_me``); stamp health, drop dead ones.
+
+    Also reconciles the roster: connects any active account added (or
+    re-activated) since the last pass, so a freshly-connected account starts
+    joining/sending without restarting the gateway.
+    """
     store = SocialAccountStore()
     while stop_event is None or not stop_event.is_set():
         await asyncio.sleep(HEALTH_CHECK_INTERVAL)
+        try:
+            added = await clients.connect_new()
+            if added:
+                logger.info("Health: connected %d newly-added account(s).", added)
+        except Exception as exc:  # never let reconciliation kill the loop
+            logger.warning("Health: connect_new failed: %s", exc)
         for account_id in clients.account_ids():
             entry = clients.get(account_id)
             if not entry:
