@@ -214,4 +214,8 @@ Follow the dependency-injection pattern already used in the Telegram gateway tes
 - [x] Step 7 — Hono connect-bot proxy
 - [x] Step 8 — web connect dialog (platform picker + Discord token form)
 - [x] Step 9 — docker-compose discord-gateway service
-- [ ] Step 10 — tests + full verification
+- [x] Step 10 — tests + full verification
+
+> Note: the pre-existing `tests/test_{talk,sales,research}_agent.py` suite errors at
+> fixture setup (`store_mod` has no `settings` attribute) on `main` too — unrelated
+> to this work. The new Discord tests avoid that fixture (injected fakes, no DB).
