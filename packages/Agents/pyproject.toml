@@ -8,6 +8,7 @@ dependencies = [
     "apscheduler>=3.11.2",
     "black>=26.3.1",
     "cryptography>=48.0.0",
+    "discord.py>=2.4",
     "einops==0.8.1",
     "fastapi[standard]>=0.115.0",
     "firecrawl-py>=4.28.2",

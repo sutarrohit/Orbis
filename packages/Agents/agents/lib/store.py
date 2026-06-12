@@ -587,16 +587,22 @@ class SocialAccountStore:
             )
             return cur.fetchall()
 
-    def all_active(self) -> list[dict]:
-        """Every active account WITH its (still-encrypted) session string, across
-        all brands. The gateway logs each one in. Skips accounts with no session."""
+    def all_active(self, platform: str | None = None) -> list[dict]:
+        """Every active account WITH its (still-encrypted) session string. The
+        gateway logs each one in. Skips accounts with no session. Pass
+        ``platform`` (e.g. ``"telegram"`` / ``"discord"``) so a per-platform
+        gateway loads only its own accounts."""
+        sql = (
+            'SELECT id, "brandId", "externalId", handle, "sessionString" '
+            'FROM social_account WHERE status = %s::"SocialAccountStatus" '
+            'AND "sessionString" IS NOT NULL'
+        )
+        params: list = ["active"]
+        if platform is not None:
+            sql += ' AND platform = %s::"Platform"'
+            params.append(platform)
         with db.cursor() as cur:
-            cur.execute(
-                'SELECT id, "brandId", "externalId", handle, "sessionString" '
-                'FROM social_account WHERE status = %s::"SocialAccountStatus" '
-                'AND "sessionString" IS NOT NULL',
-                ("active",),
-            )
+            cur.execute(sql, tuple(params))
             return [
                 {
                     "id": r[0],
@@ -642,10 +648,12 @@ class SocialAccountStore:
         display_name: str | None = None,
         session_string: str | None = None,
         status: str = "active",
+        platform: str = "telegram",
     ) -> dict:
         """Insert or update an account keyed by ``(brandId, externalId)``.
 
-        ``session_string`` must already be **encrypted** (see ``agents.lib.crypto``).
+        ``session_string`` must already be **encrypted** (see ``agents.lib.crypto``);
+        for Discord it holds the bot token, for Telegram the MTProto session string.
         Returns the safe view of the stored row.
         """
         bid = db.resolve_brand_id(brand_id)
@@ -653,13 +661,15 @@ class SocialAccountStore:
             cur.execute(
                 'INSERT INTO social_account '
                 '(id, "brandId", "externalId", handle, phone, "displayName", '
-                '"sessionString", status, "updatedAt") '
-                'VALUES (%s, %s, %s, %s, %s, %s, %s, %s::"SocialAccountStatus", now()) '
+                '"sessionString", status, platform, "updatedAt") '
+                'VALUES (%s, %s, %s, %s, %s, %s, %s, %s::"SocialAccountStatus", '
+                '%s::"Platform", now()) '
                 'ON CONFLICT ("brandId", "externalId") DO UPDATE SET '
                 "handle = EXCLUDED.handle, phone = EXCLUDED.phone, "
                 '"displayName" = EXCLUDED."displayName", '
                 '"sessionString" = EXCLUDED."sessionString", '
-                "status = EXCLUDED.status, \"updatedAt\" = now() "
+                'status = EXCLUDED.status, platform = EXCLUDED.platform, '
+                '"updatedAt" = now() '
                 f"RETURNING {self._SAFE_COLUMNS}",
                 (
                     db.new_id(),
@@ -670,6 +680,7 @@ class SocialAccountStore:
                     display_name,
                     session_string,
                     status,
+                    platform,
                 ),
             )
             return self._row_to_view(cur.fetchone())
