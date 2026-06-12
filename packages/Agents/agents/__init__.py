@@ -19,3 +19,13 @@ For now there is **no Postgres and no Gateway** — the "bus" is a local JSON
 file store (see ``agents.store``). Swap ``store`` for real DB repositories later
 without touching agent logic.
 """
+
+import asyncio
+
+# Pyrogram calls asyncio.get_event_loop() at import time, which raises
+# RuntimeError in Python ≥3.14 when no loop is running yet. Ensure one exists
+# before any submodule imports pyrogram.
+try:
+    asyncio.get_running_loop()
+except RuntimeError:
+    asyncio.set_event_loop(asyncio.new_event_loop())
