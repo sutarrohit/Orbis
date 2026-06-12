@@ -210,7 +210,7 @@ Follow the dependency-injection pattern already used in the Telegram gateway tes
 - [x] Step 3 — discord.py dependency
 - [x] Step 4 — `discord_auth.connect_bot`
 - [x] Step 5 — connect-bot account route + schema
-- [ ] Step 6 — Discord gateway (manager/listeners/sender/health/runner)
+- [x] Step 6 — Discord gateway (manager/listeners/sender/health/runner)
 - [ ] Step 7 — Hono connect-bot proxy
 - [ ] Step 8 — web connect dialog (platform picker + Discord token form)
 - [ ] Step 9 — docker-compose discord-gateway service

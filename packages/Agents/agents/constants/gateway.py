@@ -19,3 +19,6 @@ SCRAPE_LIMIT = 200  # max members scraped per community (v1 cap)
 
 # Health check loop.
 HEALTH_CHECK_INTERVAL = 300  # ping each client every 5 min, stamp/heal status
+
+# Discord gateway.
+DISCORD_READY_TIMEOUT = 30  # seconds to wait for a bot to connect before giving up
