@@ -57,47 +57,72 @@ class GatewayClients:
             "external_id": external_id,
         }
 
+    async def _connect_account(self, acc: dict) -> bool:
+        """Log in one account and register its client. Returns True on success.
+
+        A dead session (``Unauthorized``) marks the account ``restricted``; a
+        transient error is left alone so a later pass can retry it.
+        """
+        try:
+            session = crypto.decrypt(acc["session_string"])
+            client = Client(
+                name=f"gw:{acc['id']}",
+                api_id=settings.telegram_api_id,
+                api_hash=settings.telegram_api_hash,
+                session_string=session,
+                in_memory=True,
+            )
+            await client.start()
+            me = await client.get_me()
+            attach_listeners(client, acc["brand_id"], acc["id"])
+            self.register(acc["id"], client, acc["brand_id"], acc["external_id"])
+            await asyncio.to_thread(SocialAccountStore().mark_health, acc["id"], "active")
+            logger.info(
+                "Gateway client up: account=%s (@%s)", acc["external_id"], me.username
+            )
+            return True
+        except Unauthorized as exc:  # dead session → take it out of rotation
+            logger.error(
+                "Account %s session invalid (%s); marking restricted.",
+                acc.get("external_id"),
+                exc,
+            )
+            await asyncio.to_thread(
+                SocialAccountStore().mark_health, acc["id"], "restricted"
+            )
+        except Exception as exc:  # transient — don't penalise the account
+            logger.error(
+                "Could not start client for account %s: %s",
+                acc.get("external_id"),
+                exc,
+            )
+        return False
+
     async def start_all(self) -> int:
         """Connect a client for every active account with a session. Returns count."""
         if not settings.telegram_api_id or not settings.telegram_api_hash:
             raise RuntimeError("TELEGRAM_API_ID / TELEGRAM_API_HASH are not set.")
         accounts = await asyncio.to_thread(SocialAccountStore().all_active)
         for acc in accounts:
-            try:
-                session = crypto.decrypt(acc["session_string"])
-                client = Client(
-                    name=f"gw:{acc['id']}",
-                    api_id=settings.telegram_api_id,
-                    api_hash=settings.telegram_api_hash,
-                    session_string=session,
-                    in_memory=True,
-                )
-                await client.start()
-                me = await client.get_me()
-                attach_listeners(client, acc["brand_id"], acc["id"])
-                self.register(acc["id"], client, acc["brand_id"], acc["external_id"])
-                await asyncio.to_thread(
-                    SocialAccountStore().mark_health, acc["id"], "active"
-                )
-                logger.info(
-                    "Gateway client up: account=%s (@%s)", acc["external_id"], me.username
-                )
-            except Unauthorized as exc:  # dead session → take it out of rotation
-                logger.error(
-                    "Account %s session invalid (%s); marking restricted.",
-                    acc.get("external_id"),
-                    exc,
-                )
-                await asyncio.to_thread(
-                    SocialAccountStore().mark_health, acc["id"], "restricted"
-                )
-            except Exception as exc:  # transient — don't penalise the account
-                logger.error(
-                    "Could not start client for account %s: %s",
-                    acc.get("external_id"),
-                    exc,
-                )
+            await self._connect_account(acc)
         return len(self._clients)
+
+    async def connect_new(self) -> int:
+        """Connect any active account that isn't in the registry yet — accounts
+        added (or re-activated) after the gateway started. Returns how many came
+        online this pass. Without this, a freshly-connected account is never
+        logged in, so the joiner skips every community assigned to it.
+        """
+        if not settings.telegram_api_id or not settings.telegram_api_hash:
+            return 0
+        accounts = await asyncio.to_thread(SocialAccountStore().all_active)
+        connected = 0
+        for acc in accounts:
+            if acc["id"] in self._clients:
+                continue
+            if await self._connect_account(acc):
+                connected += 1
+        return connected
 
     async def stop_all(self) -> None:
         for entry in self._clients.values():
