@@ -1,7 +1,8 @@
 # Deploying Orbis to a Linode VM (Docker Compose)
 
-Deploys the **Hono API** + **Python agent service** + **Telegram gateway** to a
-single always-on Linux box and exposes the API over HTTPS behind Nginx.
+Deploys the **Hono API** + **Python agent service** + **Telegram gateway** +
+**Discord gateway** to a single always-on Linux box and exposes the API over
+HTTPS behind Nginx.
 
 The database is **managed Supabase** (already in your `.env` files), so there is
 no Postgres on the box.
@@ -23,7 +24,10 @@ no Postgres on the box.
         │            ┌──────▼───────┐   ┌──────────────┐  │
         │            │  agents-api  │   │   gateway    │  │
         │            │  (FastAPI)   │   │ (Telegram)   │  │
-        │            └──────────────┘   └──────────────┘  │
+        │            └──────────────┘   ├──────────────┤  │
+        │                               │ discord-     │  │
+        │                               │ gateway      │  │
+        │                               └──────────────┘  │
         └─────────────────────────────────────────────────┘
                              │
                              ▼
@@ -35,11 +39,11 @@ Files added to the repo for this deploy:
 | File | Purpose |
 |---|---|
 | `apps/server/Dockerfile` | Builds the Hono image. **Build context is the repo root** (`context: .` in compose) because it's a pnpm workspace; entry `dist/src/index.js` |
-| `packages/Agents/Dockerfile` | One Python image for both the FastAPI service and the gateway |
+| `packages/Agents/Dockerfile` | One Python image for the FastAPI service and both gateways (Telegram + Discord) |
 | `packages/Agents/.dockerignore`, `.dockerignore` | Keep build contexts small & secret-free |
-| `docker-compose.yml` | Orchestrates `api` + `agents-api` + `gateway` on one private bridge network (`orbis-net`) |
+| `docker-compose.yml` | Orchestrates `api` + `agents-api` + `gateway` + `discord-gateway` on one private bridge network (`orbis-net`) |
 
-All three services share an explicit bridge network (`orbis-net`) and reach each
+All services share an explicit bridge network (`orbis-net`) and reach each
 other **by service name** — the Hono API calls the Python service at
 `http://agents-api:8000`. Inside Docker the service name *is* the private
 address; sibling containers are **not** reachable via `localhost`.
@@ -173,6 +177,7 @@ the Torch caveat at the bottom. Watch logs:
 docker compose logs -f api
 docker compose logs -f agents-api
 docker compose logs -f gateway
+docker compose logs -f discord-gateway
 ```
 
 Sanity-check inside the box:
@@ -312,10 +317,12 @@ docker compose logs -f
   app's strict `src/env.ts` validator. The real env is still validated when the
   server actually boots.
 - **The clock / scheduler** runs inside the `agents-api` (FastAPI) lifespan when
-  `SCHEDULER_ENABLED=true`. The `gateway` service is separate and always runs the
-  Telegram send/join/health loops.
-- **Run exactly one gateway.** A Telegram session string is a single authorized
-  login; don't scale the `gateway` service to more than one replica.
+  `SCHEDULER_ENABLED=true`. The `gateway` (Telegram) and `discord-gateway` services
+  are separate and always run their platform's send/health loops; the Telegram
+  gateway also runs the community join/scrape loop (Discord bots can't cold-join).
+- **Run exactly one of each gateway.** A Telegram session string / Discord bot
+  token is a single authorized login; don't scale either gateway service past one
+  replica.
 - **No volumes needed.** Pyrogram sessions are stored (encrypted) in the DB, not
   on disk, so containers are stateless and safe to recreate.
 - **Secrets** live only in the two `.env` files on the server (and are excluded

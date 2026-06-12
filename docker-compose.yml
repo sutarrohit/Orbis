@@ -60,6 +60,18 @@ services:
       - orbis-net
     restart: unless-stopped
 
+  # ── Discord gateway runner (long-running; reuses the agents image) ─────────
+  discord-gateway:
+    image: orbis-agents:latest
+    env_file:
+      - packages/Agents/.env
+    command: ["uv", "run", "python", "-m", "agents.gateway.discord.runner"]
+    depends_on:
+      - agents-api # ensures the orbis-agents:latest image is built first
+    networks:
+      - orbis-net
+    restart: unless-stopped
+
 # ── Shared private network ───────────────────────────────────────────────────
 # All services join one explicit bridge network so they resolve each other by
 # service name (e.g. http://agents-api:8000). This is the "local"/private
