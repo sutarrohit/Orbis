@@ -209,7 +209,7 @@ Follow the dependency-injection pattern already used in the Telegram gateway tes
 - [x] Step 2 — store layer platform filter (`all_active`, `upsert`) + Telegram manager scope
 - [x] Step 3 — discord.py dependency
 - [x] Step 4 — `discord_auth.connect_bot`
-- [ ] Step 5 — connect-bot account route + schema
+- [x] Step 5 — connect-bot account route + schema
 - [ ] Step 6 — Discord gateway (manager/listeners/sender/health/runner)
 - [ ] Step 7 — Hono connect-bot proxy
 - [ ] Step 8 — web connect dialog (platform picker + Discord token form)
