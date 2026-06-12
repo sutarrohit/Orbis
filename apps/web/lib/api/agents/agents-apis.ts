@@ -35,6 +35,11 @@ export function verifyPassword(input: { phone: string; password: string }): Prom
   return request("/agents/accounts/verify-password", { method: "POST", body: JSON.stringify(input) });
 }
 
+/** Discord bot connect — single step (the token is the credential). */
+export function connectBot(input: { token: string }): Promise<LoginStepResult> {
+  return request("/agents/accounts/connect-bot", { method: "POST", body: JSON.stringify(input) });
+}
+
 /* ── Scheduler ─────────────────────────────────────────────────────────── */
 
 export type SchedulerAction = "start" | "pause" | "resume" | "stop";
