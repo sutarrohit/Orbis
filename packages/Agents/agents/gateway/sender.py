@@ -40,7 +40,7 @@ async def drain_once(clients, *, store: PendingSendStore | None = None, pace: fl
     ``store`` is injectable for testing; defaults to a real ``PendingSendStore``.
     """
     store = store or PendingSendStore()
-    batch = await asyncio.to_thread(store.next_queued, SEND_BATCH)
+    batch = await asyncio.to_thread(store.next_queued, SEND_BATCH, platform="telegram")
     sent = failed = 0
     for row in batch:
         entry = clients.get(row["account_id"])

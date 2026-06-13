@@ -102,7 +102,9 @@ class GatewayClients:
         """Connect a client for every active account with a session. Returns count."""
         if not settings.telegram_api_id or not settings.telegram_api_hash:
             raise RuntimeError("TELEGRAM_API_ID / TELEGRAM_API_HASH are not set.")
-        accounts = await asyncio.to_thread(SocialAccountStore().all_active)
+        accounts = await asyncio.to_thread(
+            SocialAccountStore().all_active, platform="telegram"
+        )
         for acc in accounts:
             await self._connect_account(acc)
         return len(self._clients)
@@ -115,7 +117,9 @@ class GatewayClients:
         """
         if not settings.telegram_api_id or not settings.telegram_api_hash:
             return 0
-        accounts = await asyncio.to_thread(SocialAccountStore().all_active)
+        accounts = await asyncio.to_thread(
+            SocialAccountStore().all_active, platform="telegram"
+        )
         connected = 0
         for acc in accounts:
             if acc["id"] in self._clients:

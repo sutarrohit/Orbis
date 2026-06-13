@@ -78,6 +78,7 @@ export default function LeadsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Username</TableHead>
+                <TableHead>Platform</TableHead>
                 <TableHead>Score</TableHead>
                 <TableHead>Interest</TableHead>
                 <TableHead>Status</TableHead>
@@ -88,7 +89,7 @@ export default function LeadsPage() {
             </TableHeader>
             <TableBody>
               {isPending ? (
-                <TableLoadingRows columns={7} />
+                <TableLoadingRows columns={8} />
               ) : (
                 data?.data.map((lead) => (
                   <TableRow
@@ -97,6 +98,9 @@ export default function LeadsPage() {
                     onClick={() => router.push(`/leads/${lead.id}`)}
                   >
                     <TableCell className='font-medium'>{lead.username}</TableCell>
+                    <TableCell>
+                      <StatusBadge kind='platform' value={lead.platform} />
+                    </TableCell>
                     <TableCell className='text-muted-foreground'>{lead.score}</TableCell>
                     <TableCell>
                       <StatusBadge kind='interest' value={lead.interestLevel} />

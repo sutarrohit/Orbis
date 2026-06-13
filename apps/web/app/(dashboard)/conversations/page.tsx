@@ -8,6 +8,7 @@ import { listConversationsQueryOptions } from "@/lib/api/conversations/conversat
 import { listCommunitiesQueryOptions } from "@/lib/api/communities/communities-queries";
 import { buildCommunityChatMap } from "@/lib/community-source";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data/data-states";
+import { StatusBadge } from "@/components/data/status-badge";
 import { formatRelativeTime } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -78,7 +79,10 @@ export default function ConversationsPage() {
           {messages.map((m) => (
             <div key={m.id} className='flex flex-col gap-1 p-3'>
               <div className='flex items-center justify-between text-xs text-muted-foreground'>
-                <span className='font-medium text-foreground'>{m.username}</span>
+                <span className='flex items-center gap-2'>
+                  <span className='font-medium text-foreground'>{m.username}</span>
+                  <StatusBadge kind='platform' value={m.platform} />
+                </span>
                 <span>{formatRelativeTime(m.ts)}</span>
               </div>
               <p className='text-sm'>{m.text}</p>

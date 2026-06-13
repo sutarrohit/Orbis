@@ -152,6 +152,7 @@ def run_research(
             src = convo_groups.get(sl.user_id)
             rec = LeadRecord(
                 brand_id=brand_id,
+                platform=(src.platform if src else "telegram"),
                 user_id=sl.user_id,
                 username=src.username if src else "",
                 score=sl.score,
@@ -176,6 +177,7 @@ def run_research(
             src = member_groups.get(sl.user_id)
             rec = LeadRecord(
                 brand_id=brand_id,
+                platform=(src.platform if src else "telegram"),
                 user_id=sl.user_id,
                 username=src.username if src else "",
                 score=sl.score,

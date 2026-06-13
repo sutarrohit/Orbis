@@ -5,6 +5,7 @@ import {
   CircleUser,
   Crown,
   Gauge,
+  Hash,
   Lightbulb,
   type LucideProps,
   MessageSquare,
@@ -12,6 +13,7 @@ import {
   Network,
   Rocket,
   Search,
+  Send,
   Settings,
   ShoppingCart,
   Target,
@@ -29,8 +31,8 @@ type Icon = ComponentType<LucideProps>;
 // into leads, and reaches out — a squad of AI agents run by a Leader.
 
 const PIPELINE: { step: string; detail: string }[] = [
-  { step: "Find", detail: "Search discovers relevant Telegram communities and scores how well they fit your niche." },
-  { step: "Join", detail: "The Leader assigns each community to one of your accounts; the gateway joins it on Telegram." },
+  { step: "Find", detail: "Search discovers relevant Telegram communities and scores how well they fit your niche; Discord servers are added by invite link." },
+  { step: "Join", detail: "The Leader assigns each community to one of your accounts; the gateway joins it (a Telegram group or a Discord server)." },
   { step: "Listen", detail: "The gateway scrapes members and records messages, building a pool of real prospects." },
   { step: "Score", detail: "Research turns those people into leads, ranking who is worth reaching out to." },
   { step: "Engage", detail: "Talk replies to group messages and Sales handles DMs — every reply is a private DM, never a public blast." },
@@ -50,7 +52,7 @@ const AGENTS: { name: string; icon: Icon; trigger: string; color: string; what: 
     icon: Search,
     trigger: "Leader / dashboard",
     color: "text-blue-500",
-    what: "Hunts the web for pages listing Telegram communities in your niche, verifies they are real, and saves the good ones as 'pending' communities. It discovers — it does not join."
+    what: "Hunts the web for pages listing Telegram communities in your niche, verifies they are real, and saves the good ones as 'pending' communities. It discovers — it does not join. (Discord servers are added manually by invite link.)"
   },
   {
     name: "Research",
@@ -75,14 +77,41 @@ const AGENTS: { name: string; icon: Icon; trigger: string; color: string; what: 
   }
 ];
 
+const PLATFORMS: { name: string; icon: Icon; color: string; connect: string; communities: string; note: string }[] = [
+  {
+    name: "Telegram",
+    icon: Send,
+    color: "text-sky-500",
+    connect: "Add the account's phone number; Telegram sends a login code, then asks for the 2FA password if the account has one.",
+    communities: "Search finds Telegram groups for you. The Leader assigns each to an account and the gateway joins it and scrapes members.",
+    note: "Broadcast channels hide their member list — Orbis reaches those audiences through the channel's linked discussion group."
+  },
+  {
+    name: "Discord",
+    icon: Hash,
+    color: "text-indigo-500",
+    connect: "Create a bot in the Discord Developer Portal, enable the Message Content (and Server Members) intents, and paste its bot token.",
+    communities: "Invite the bot to your server via its OAuth2 URL, then add the server on the Communities page by its server ID and assign it to the bot account. The bot scrapes members, posts in channels, and DMs prospects who share the server.",
+    note: "Bots can only DM members who share a server and have DMs open; member scraping needs the Server Members intent."
+  }
+];
+
+const DISCORD_SETUP: string[] = [
+  "Go to discord.com/developers/applications and click New Application.",
+  "Open Bot in the sidebar, click Reset Token, and copy the token.",
+  "On the Bot page, under Privileged Gateway Intents, enable the Message Content Intent (and Server Members Intent if you want member scraping).",
+  "Go to OAuth2 → URL Generator: check the bot scope, then the Send Messages + Read Message History permissions, and open the generated URL to invite the bot to your server.",
+  "On the Accounts page choose Discord, paste the bot token, and click Connect Bot. Then add your server on the Communities page by its server ID (Developer Mode → right-click the server → Copy Server ID)."
+];
+
 const STEPS: { title: string; body: string }[] = [
   {
     title: "Describe your brand",
     body: "Go to Settings and fill in your niche, voice, short description, website, and the About / Knowledge box. The agents only ever speak from what you put here — they never make up facts, so the more you add, the better they sound."
   },
   {
-    title: "Connect a Telegram account",
-    body: "Open Accounts and connect a Telegram account. This is the identity that joins communities and sends DMs. Nothing can join or message until at least one account is connected and active."
+    title: "Connect an account",
+    body: "Open Accounts and connect a Telegram account (phone + code) or a Discord bot (create it in the Developer Portal and paste its bot token). This is the identity that joins communities and sends DMs. Nothing can join or message until at least one account is connected and active."
   },
   {
     title: "Find communities",
@@ -114,7 +143,7 @@ const PAGES: { name: string; icon: Icon; desc: string }[] = [
   { name: "Dashboard", icon: Rocket, desc: "Run agents manually and see what each one is doing right now." },
   { name: "Activity", icon: Activity, desc: "A live feed of every action the agents take." },
   { name: "Agent Config", icon: Bot, desc: "Tune each agent's persona, voice, and rules." },
-  { name: "Accounts", icon: CircleUser, desc: "Connect and manage the Telegram accounts that do the work." },
+  { name: "Accounts", icon: CircleUser, desc: "Connect and manage the Telegram & Discord accounts that do the work." },
   { name: "Communities", icon: Users, desc: "Every group found or joined, plus their members." },
   { name: "Leads", icon: Target, desc: "Scored prospects, their source community, and outreach status." },
   { name: "Learnings", icon: Lightbulb, desc: "Strategy notes the Leader writes for itself over time." },
@@ -135,10 +164,10 @@ export default function HowToPage() {
           <h1 className="text-2xl font-semibold">How to use Orbis</h1>
         </div>
         <p className="max-w-3xl text-muted-foreground">
-          Orbis is an autonomous growth system for Telegram. It finds communities where your
-          future customers hang out, joins them, listens, figures out who is worth talking to, and
-          reaches out with personalized DMs — run by a small squad of AI agents and coordinated by
-          a Leader. This page explains what each part does and how to get started.
+          Orbis is an autonomous growth system for Telegram and Discord. It finds communities
+          where your future customers hang out, joins them, listens, figures out who is worth
+          talking to, and reaches out with personalized DMs — run by a small squad of AI agents and
+          coordinated by a Leader. This page explains what each part does and how to get started.
         </p>
       </section>
 
@@ -198,6 +227,64 @@ export default function HowToPage() {
             </Card>
           ))}
         </div>
+      </section>
+
+      {/* Where it works */}
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <Network className="size-5 text-muted-foreground" />
+          <h2 className="text-lg font-semibold">Where Orbis works</h2>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Orbis runs the same loop on Telegram and Discord. The accounts you connect on the
+          Accounts page decide which platform each community uses — assign a community to a Telegram
+          account and it joins on Telegram, assign it to a Discord account and it joins on Discord.
+        </p>
+        <div className="grid gap-3 md:grid-cols-2">
+          {PLATFORMS.map((p) => (
+            <Card key={p.name}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <p.icon className={`size-5 ${p.color}`} />
+                  {p.name}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-2 text-sm text-muted-foreground">
+                <p>
+                  <span className="font-medium text-foreground">Connect:</span> {p.connect}
+                </p>
+                <p>
+                  <span className="font-medium text-foreground">Communities:</span> {p.communities}
+                </p>
+                <p className="italic">{p.note}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      {/* Set up a Discord bot */}
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <Hash className="size-5 text-muted-foreground" />
+          <h2 className="text-lg font-semibold">Set up a Discord bot</h2>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Discord runs through a bot you create and invite. (Telegram needs none of this — just
+          connect the account with its phone number.)
+        </p>
+        <Card>
+          <CardContent className="flex flex-col divide-y">
+            {DISCORD_SETUP.map((s, i) => (
+              <div key={i} className="flex gap-3 py-2.5 first:pt-0 last:pb-0">
+                <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+                  {i + 1}
+                </div>
+                <p className="text-sm text-muted-foreground">{s}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </section>
 
       {/* Getting started */}
@@ -291,8 +378,14 @@ export default function HowToPage() {
             </p>
             <p>
               <span className="font-medium text-foreground">Nothing sends without an active account.</span>{" "}
-              Joining communities and sending DMs both need a connected, active Telegram account on
-              the Accounts page.
+              Joining communities and sending DMs both need a connected, active Telegram or Discord
+              account on the Accounts page.
+            </p>
+            <p>
+              <span className="font-medium text-foreground">Discord uses a bot you invite.</span>{" "}
+              Search discovers Telegram communities automatically; for Discord, invite your bot to a
+              server via its OAuth2 URL, then add the server on the Communities page by its server ID
+              and assign it to the bot account.
             </p>
           </CardContent>
         </Card>

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import type { LoginStatus } from "@/lib/api/agents/agents-apis";
 import {
+  connectDiscordMutationOptions,
   sendCodeMutationOptions,
   verifyCodeMutationOptions,
   verifyPasswordMutationOptions
@@ -25,24 +26,39 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 
+type Platform = "telegram" | "discord";
 type Step = "phone" | "code" | "password";
 
 export function ConnectAccountDialog() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [platform, setPlatform] = useState<Platform>("telegram");
   const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
+  const [token, setToken] = useState("");
+
+  function resetFields() {
+    setStep("phone");
+    setPhone("");
+    setCode("");
+    setPassword("");
+    setToken("");
+  }
 
   function onOpenChange(next: boolean) {
     setOpen(next);
     if (!next) {
-      setStep("phone");
-      setPhone("");
-      setCode("");
-      setPassword("");
+      setPlatform("telegram");
+      resetFields();
     }
+  }
+
+  function selectPlatform(next: Platform) {
+    if (next === platform) return;
+    setPlatform(next);
+    resetFields();
   }
 
   function handleResult(status: LoginStatus) {
@@ -68,15 +84,31 @@ export function ConnectAccountDialog() {
     onSuccess: (r) => handleResult(r.status),
     onError
   });
+  const connectDiscordM = useMutation({
+    ...connectDiscordMutationOptions(),
+    onSuccess: (r) => handleResult(r.status),
+    onError
+  });
 
-  const pending = sendCodeM.isPending || verifyCodeM.isPending || verifyPasswordM.isPending;
+  const pending =
+    sendCodeM.isPending || verifyCodeM.isPending || verifyPasswordM.isPending || connectDiscordM.isPending;
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (platform === "discord") {
+      connectDiscordM.mutate({ token: token.trim() });
+      return;
+    }
     if (step === "phone") sendCodeM.mutate({ phone: phone.trim() });
     else if (step === "code") verifyCodeM.mutate({ phone: phone.trim(), code: code.trim() });
     else verifyPasswordM.mutate({ phone: phone.trim(), password });
   }
+
+  // The platform picker only makes sense before a multi-step Telegram flow starts.
+  const showPicker = platform === "discord" || step === "phone";
+
+  const submitLabel =
+    platform === "discord" ? "Connect Bot" : step === "phone" ? "Send code" : step === "code" ? "Verify" : "Submit";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -85,16 +117,62 @@ export function ConnectAccountDialog() {
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Connect a Telegram account</DialogTitle>
+          <DialogTitle>Connect an account</DialogTitle>
           <DialogDescription>
-            {step === "phone" && "Enter the phone number for the account."}
-            {step === "code" && "Enter the code Telegram sent to that number."}
-            {step === "password" && "This account has 2FA enabled — enter its password."}
+            {platform === "discord"
+              ? "Paste your Discord bot token (Developer Portal → Bot → Reset Token)."
+              : step === "phone"
+                ? "Enter the phone number for the Telegram account."
+                : step === "code"
+                  ? "Enter the code Telegram sent to that number."
+                  : "This account has 2FA enabled — enter its password."}
           </DialogDescription>
         </DialogHeader>
 
+        {showPicker && (
+          <div className='flex gap-2'>
+            <Button
+              type='button'
+              variant={platform === "telegram" ? "default" : "outline"}
+              className='flex-1'
+              onClick={() => selectPlatform("telegram")}
+            >
+              Telegram
+            </Button>
+            <Button
+              type='button'
+              variant={platform === "discord" ? "default" : "outline"}
+              className='flex-1'
+              onClick={() => selectPlatform("discord")}
+            >
+              Discord
+            </Button>
+          </div>
+        )}
+
         <form onSubmit={onSubmit} className='flex flex-col gap-4'>
-          {step === "phone" && (
+          {platform === "discord" && (
+            <div className='flex flex-col gap-2'>
+              <Label htmlFor='token'>Bot token</Label>
+              <Input
+                id='token'
+                type='password'
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                placeholder='Discord bot token'
+                autoFocus
+                required
+              />
+              <p className='text-muted-foreground text-xs'>
+                Create a bot at discord.com/developers/applications → Bot → Reset Token. Enable the
+                Message Content (and Server Members) intents, invite it to your server via OAuth2 →
+                URL Generator (bot scope + Send Messages &amp; Read Message History), then paste the
+                token here.
+              </p>
+            </div>
+          )}
+
+          {platform === "telegram" && step === "phone" && (
             <div className='flex flex-col gap-2'>
               <Label htmlFor='phone'>Phone number</Label>
               <Input
@@ -107,7 +185,7 @@ export function ConnectAccountDialog() {
               />
             </div>
           )}
-          {step === "code" && (
+          {platform === "telegram" && step === "code" && (
             <div className='flex flex-col gap-2'>
               <Label htmlFor='code'>Verification code</Label>
               <Input
@@ -120,7 +198,7 @@ export function ConnectAccountDialog() {
               />
             </div>
           )}
-          {step === "password" && (
+          {platform === "telegram" && step === "password" && (
             <div className='flex flex-col gap-2'>
               <Label htmlFor='password'>2FA password</Label>
               <Input
@@ -137,7 +215,7 @@ export function ConnectAccountDialog() {
           <DialogFooter>
             <Button type='submit' disabled={pending}>
               {pending ? <Spinner /> : null}
-              {step === "phone" ? "Send code" : step === "code" ? "Verify" : "Submit"}
+              {submitLabel}
             </Button>
           </DialogFooter>
         </form>

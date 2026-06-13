@@ -1,11 +1,12 @@
 import { z } from "@hono/zod-openapi";
 import { dateField, nullableDateField } from "./common.schema.js";
-import { InterestLevelEnum, LeadSourceEnum, LeadStatusEnum } from "./enums.schema.js";
+import { InterestLevelEnum, LeadSourceEnum, LeadStatusEnum, PlatformEnum } from "./enums.schema.js";
 
 export const LeadSchema = z
   .object({
     id: z.string().uuid(),
     brandId: z.string().uuid(),
+    platform: PlatformEnum,
     userId: z.string(),
     username: z.string(),
     score: z.number().int(),

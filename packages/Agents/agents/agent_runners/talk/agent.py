@@ -55,6 +55,7 @@ def _save_lead(ctx: TalkContext, decision: ReplyDecision, now: str) -> bool:
     note = (decision.message or ctx.message_text)[:280]
     record = LeadRecord(
         brand_id=ctx.brand_id,
+        platform=ctx.platform,
         user_id=ctx.sender_user_id,
         username=ctx.sender_username,
         score=score,

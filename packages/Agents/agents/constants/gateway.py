@@ -19,3 +19,13 @@ SCRAPE_LIMIT = 200  # max members scraped per community (v1 cap)
 
 # Health check loop.
 HEALTH_CHECK_INTERVAL = 300  # ping each client every 5 min, stamp/heal status
+
+# ── Discord gateway (user-token self-bots) ──────────────────────────────────
+# Self-bots get flagged faster than Telegram user accounts, so pace harder and
+# move smaller batches. The poll/health intervals above are shared.
+DISCORD_SEND_PACE_SECONDS = 5  # pause between Discord sends
+DISCORD_SEND_BATCH = 10  # max queued Discord sends drained per pass
+DISCORD_JOIN_PACE_SECONDS = 15  # pause between server joins (accepting invites)
+DISCORD_JOIN_BATCH = 3  # max servers joined per pass
+DISCORD_SCRAPE_LIMIT = 200  # max members scraped per server (v1 cap)
+DISCORD_CONNECT_TIMEOUT = 30  # seconds to wait for a client to reach READY on login

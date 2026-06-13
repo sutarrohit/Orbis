@@ -1,10 +1,11 @@
 import { request } from "@/utils/request";
-import type { InterestLevel, LeadSource, LeadStatus } from "@/lib/api/enums";
+import type { InterestLevel, LeadSource, LeadStatus, Platform } from "@/lib/api/enums";
 
 /** A lead as returned by `GET /leads`. */
 export interface Lead {
   id: string;
   brandId: string;
+  platform: Platform;
   userId: string;
   username: string;
   score: number;

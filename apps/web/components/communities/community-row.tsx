@@ -66,7 +66,10 @@ export function CommunityRow({ community, accounts }: { community: Community; ac
   return (
     <TableRow>
       <TableCell>
-        <div className='font-medium'>{community.name || community.handle}</div>
+        <div className='flex items-center gap-2'>
+          <span className='font-medium'>{community.name || community.handle}</span>
+          <StatusBadge kind='platform' value={community.platform} />
+        </div>
         <div className='text-xs text-muted-foreground'>{community.handle}</div>
         {community.note ? (
           <div className='text-xs italic text-muted-foreground'>{community.note}</div>
@@ -128,7 +131,7 @@ export function CommunityRow({ community, accounts }: { community: Community; ac
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete {community.name || community.handle}?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  The assigned account will leave the Telegram chat, and this community&apos;s
+                  The assigned account will leave the group/server, and this community&apos;s
                   scraped members and conversations will be removed. Leads already generated are
                   kept. This can&apos;t be undone.
                 </AlertDialogDescription>

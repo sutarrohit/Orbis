@@ -11,6 +11,7 @@ import {
   AgentAccountListSchema,
   AgentAccountViewSchema,
   AgentRunResultSchema,
+  ConnectDiscordInputSchema,
   DecideContextSchema,
   DecideQuerySchema,
   LeaderRunInputSchema,
@@ -170,6 +171,16 @@ const verifyPassword = createRoute({
   responses: { [OK]: jsonContent(LoginStepResultSchema, "Login step result"), ...upstreamError }
 });
 
+const connectDiscord = createRoute({
+  method: "post",
+  path: "/agents/accounts/discord/connect",
+  tags,
+  security: protectedSecurity,
+  summary: "Connect a Discord account from its user token (single step)",
+  request: { body: jsonContentRequired(ConnectDiscordInputSchema, "Discord user token") },
+  responses: { [OK]: jsonContent(LoginStepResultSchema, "Login step result"), ...upstreamError }
+});
+
 // ─── Account management ──────────────────────────────────────────────────────
 
 const listAccounts = createRoute({
@@ -229,6 +240,9 @@ export const agentsRouter = router
   .openapi(verifyCode, async (c) => c.json(await agentsService.verifyCode(ctxOf(c), c.req.valid("json")), OK))
   .openapi(verifyPassword, async (c) =>
     c.json(await agentsService.verifyPassword(ctxOf(c), c.req.valid("json")), OK)
+  )
+  .openapi(connectDiscord, async (c) =>
+    c.json(await agentsService.connectDiscord(ctxOf(c), c.req.valid("json")), OK)
   )
   .openapi(listAccounts, async (c) => c.json(await agentsService.listAgentAccounts(ctxOf(c)), OK))
   .openapi(setAccountStatus, async (c) =>

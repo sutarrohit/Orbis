@@ -6,6 +6,7 @@ import { createServiceToken } from "../lib/agents-jwt.js";
 import type {
   AgentAccountList,
   AgentRunResult,
+  ConnectDiscordInput,
   DecideContext,
   LeaderRunInput,
   LoginStepResult,
@@ -226,6 +227,17 @@ export function verifyPassword(ctx: BrandCtx, input: VerifyPasswordInput): Promi
     brandId: ctx.brandId,
     userId: ctx.userId,
     body: { brand_id: ctx.brandId, phone: input.phone, password: input.password }
+  });
+}
+
+// ── Account connect (Discord user token — single step) ───────────────────────
+
+export function connectDiscord(ctx: BrandCtx, input: ConnectDiscordInput): Promise<LoginStepResult> {
+  return callAgents<LoginStepResult>("/api/accounts/discord/connect", {
+    method: "POST",
+    brandId: ctx.brandId,
+    userId: ctx.userId,
+    body: { brand_id: ctx.brandId, token: input.token }
   });
 }
 

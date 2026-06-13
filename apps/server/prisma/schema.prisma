@@ -132,6 +132,11 @@ enum PendingSendStatus {
   failed
 }
 
+enum SendKind {
+  dm
+  channel_post
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Agent layer — models
 // ─────────────────────────────────────────────────────────────────────────────
@@ -199,8 +204,9 @@ model SocialAccount {
   phone             String?
   /// Friendly name shown in the dashboard.
   displayName       String?
-  /// The MTProto session string — the credential the gateway logs in with.
-  /// Sensitive (full account access): store ENCRYPTED at rest, never log it.
+  /// The login credential the gateway uses: a Telegram MTProto session string or
+  /// a Discord user token. Sensitive (full account access): store ENCRYPTED at
+  /// rest, never log it.
   sessionString     String?
   status            SocialAccountStatus @default(active)
   /// Last time the account's session was verified alive/healthy.
@@ -221,6 +227,8 @@ model SocialAccount {
 model Lead {
   id                  String        @id @default(uuid())
   brandId             String
+  /// The platform this lead came from (Telegram/Discord), tagged at write time.
+  platform            Platform      @default(telegram)
   userId              String
   username            String        @default("")
   score               Int           @default(0)
@@ -248,6 +256,10 @@ model Lead {
 model Community {
   id                String          @id @default(uuid())
   brandId           String
+  /// Which platform this community lives on. Derived from the joining account
+  /// (a Telegram group vs a Discord server); kept on the row so the dashboard
+  /// can badge it without a join.
+  platform          Platform        @default(telegram)
   handle            String
   name              String          @default("")
   nicheRelevance    Int             @default(0)
@@ -284,6 +296,8 @@ model Community {
 model Conversation {
   id          String   @id @default(uuid())
   brandId     String
+  /// The platform this message came from (Telegram/Discord).
+  platform    Platform @default(telegram)
   userId      String
   username    String   @default("")
   groupChatId String   @default("")
@@ -302,6 +316,8 @@ model Conversation {
 model GroupMember {
   id           String   @id @default(uuid())
   brandId      String
+  /// The platform this member was scraped from (Telegram/Discord).
+  platform     Platform @default(telegram)
   userId       String
   username     String   @default("")
   groupChatId  String   @default("")
@@ -321,8 +337,14 @@ model GroupMember {
 model PendingSend {
   id        String            @id @default(uuid())
   brandId   String
-  leadId    String
+  /// The lead this DM targets. Null for channel posts (kind=channel_post), which
+  /// aren't tied to a specific person.
+  leadId    String?
   accountId String
+  /// What to deliver: a direct message to the lead, or a post into a channel.
+  kind      SendKind          @default(dm)
+  /// For kind=channel_post: the platform channel id to post into (null for DMs).
+  targetId  String?
   message   String
   stage     Int               @default(0)
   status    PendingSendStatus @default(queued)
@@ -330,9 +352,9 @@ model PendingSend {
   createdAt DateTime          @default(now())
   sentAt    DateTime?
 
-  brand   Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  lead    Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  account SocialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  brand   Brand          @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  lead    Lead?          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  account SocialAccount  @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@unique([brandId, dedupKey])
   @@index([brandId, status])

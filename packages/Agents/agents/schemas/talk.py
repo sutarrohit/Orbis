@@ -57,6 +57,11 @@ class TalkContext(BaseModel):
         description="The user account that would send any reply (for rate limiting "
         "and account-health gating)."
     )
+    platform: str = Field(
+        default="telegram",
+        description="telegram | discord — carried through so a flagged lead is "
+        "tagged with the right platform. Not used for any reply logic.",
+    )
     group_chat_id: str = Field(description="The group the message arrived in.")
 
     message_text: str = Field(description="The inbound message to react to.")
@@ -133,6 +138,7 @@ class LeadRecord(BaseModel):
     """A lead as persisted to the store (dedup key ``(brand_id, user_id)``)."""
 
     brand_id: str = Field(description="Which brand this lead belongs to.")
+    platform: str = Field(default="telegram", description="telegram | discord.")
     user_id: str = Field(description="Stable platform user id (the dedup key).")
     username: str = Field(default="", description="The lead's '@handle', if any.")
     score: int = Field(default=0, ge=0, le=100)

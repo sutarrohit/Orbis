@@ -85,7 +85,9 @@ async def _join_linked_discussion(client, chat):
 async def join_and_scrape_once(clients, *, pace: float = 0.0) -> dict:
     """One pass: join each assigned pending community and scrape its members."""
     communities = CommunityStore()
-    pending = await asyncio.to_thread(communities.pending_join_assigned, JOIN_BATCH)
+    pending = await asyncio.to_thread(
+        communities.pending_join_assigned, JOIN_BATCH, platform="telegram"
+    )
     joined = scraped = rejected = skipped = 0
     for c in pending:
         entry = clients.get(c["assigned_account_id"])
@@ -197,7 +199,7 @@ async def leave_pending_once(clients) -> int:
     the Telegram-side cleanup the API can't do (the gateway owns the clients).
     """
     communities = CommunityStore()
-    pending = await asyncio.to_thread(communities.pending_leave)
+    pending = await asyncio.to_thread(communities.pending_leave, platform="telegram")
     left = 0
     for c in pending:
         gid = c["group_chat_id"]
@@ -221,7 +223,9 @@ async def backfill_discussion_ids(clients) -> int:
     query returns nothing and this is a no-op.
     """
     communities = CommunityStore()
-    todo = await asyncio.to_thread(communities.joined_missing_discussion)
+    todo = await asyncio.to_thread(
+        communities.joined_missing_discussion, platform="telegram"
+    )
     fixed = 0
     for c in todo:
         gid = c["group_chat_id"]

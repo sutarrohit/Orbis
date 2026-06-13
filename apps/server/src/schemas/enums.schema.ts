@@ -12,3 +12,4 @@ export const CommunityStatusEnum = z.enum(["pending_join", "joined", "rejected"]
 export const AgentTypeEnum = z.enum(["leader", "search", "research", "talk", "sales"]);
 export const AgentRunStatusEnum = z.enum(["idle", "running", "error"]);
 export const PendingSendStatusEnum = z.enum(["queued", "sent", "failed"]);
+export const SendKindEnum = z.enum(["dm", "channel_post"]);

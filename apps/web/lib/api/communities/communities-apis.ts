@@ -1,10 +1,11 @@
 import { request } from "@/utils/request";
-import type { CommunityStatus } from "@/lib/api/enums";
+import type { CommunityStatus, Platform } from "@/lib/api/enums";
 
 /** A discovered community as returned by `GET /communities`. */
 export interface Community {
   id: string;
   brandId: string;
+  platform: Platform;
   handle: string;
   name: string;
   nicheRelevance: number;
@@ -28,6 +29,7 @@ export interface ListCommunitiesParams {
 
 export interface CreateCommunityInput {
   handle: string;
+  platform?: Platform;
   name?: string;
   nicheRelevance?: number;
   source?: string;

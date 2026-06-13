@@ -35,17 +35,20 @@ export async function updateCommunity(brandId: string, id: string, data: UpdateC
   const owned = await prisma.community.findFirst({ where: { id, brandId } });
   if (!owned) throw new ApiError(NOT_FOUND, "COMMUNITY_NOT_FOUND", "Community not found");
 
-  // Assigning an account: make sure it belongs to this brand.
+  // Assigning an account: make sure it belongs to this brand, and keep the
+  // community's platform in sync with the joining account (it defines the platform).
+  let platform: "telegram" | "discord" | undefined;
   if (data.assignedAccountId) {
     const account = await prisma.socialAccount.findFirst({
       where: { id: data.assignedAccountId, brandId }
     });
     if (!account) throw new ApiError(NOT_FOUND, "ACCOUNT_NOT_FOUND", "Assigned account not found");
+    platform = account.platform;
   }
 
   return prisma.community.update({
     where: { id },
-    data,
+    data: platform ? { ...data, platform } : data,
     include: { assignedAccount: { select: ACCOUNT_SELECT } }
   });
 }

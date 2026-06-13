@@ -1,10 +1,11 @@
 import { request } from "@/utils/request";
-import type { PendingSendStatus } from "@/lib/api/enums";
+import type { PendingSendStatus, Platform } from "@/lib/api/enums";
 
 /** A captured group message as returned by `GET /conversations`. */
 export interface Conversation {
   id: string;
   brandId: string;
+  platform: Platform;
   userId: string;
   username: string;
   groupChatId: string;
