@@ -5,6 +5,7 @@ import {
   CircleUser,
   Crown,
   Gauge,
+  Hash,
   Lightbulb,
   type LucideProps,
   MessageSquare,
@@ -12,6 +13,7 @@ import {
   Network,
   Rocket,
   Search,
+  Send,
   Settings,
   ShoppingCart,
   Target,
@@ -29,8 +31,8 @@ type Icon = ComponentType<LucideProps>;
 // into leads, and reaches out — a squad of AI agents run by a Leader.
 
 const PIPELINE: { step: string; detail: string }[] = [
-  { step: "Find", detail: "Search discovers relevant Telegram communities and scores how well they fit your niche." },
-  { step: "Join", detail: "The Leader assigns each community to one of your accounts; the gateway joins it on Telegram." },
+  { step: "Find", detail: "Search discovers relevant Telegram communities and scores how well they fit your niche; Discord servers are added by invite link." },
+  { step: "Join", detail: "The Leader assigns each community to one of your accounts; the gateway joins it (a Telegram group or a Discord server)." },
   { step: "Listen", detail: "The gateway scrapes members and records messages, building a pool of real prospects." },
   { step: "Score", detail: "Research turns those people into leads, ranking who is worth reaching out to." },
   { step: "Engage", detail: "Talk replies to group messages and Sales handles DMs — every reply is a private DM, never a public blast." },
@@ -50,7 +52,7 @@ const AGENTS: { name: string; icon: Icon; trigger: string; color: string; what: 
     icon: Search,
     trigger: "Leader / dashboard",
     color: "text-blue-500",
-    what: "Hunts the web for pages listing Telegram communities in your niche, verifies they are real, and saves the good ones as 'pending' communities. It discovers — it does not join."
+    what: "Hunts the web for pages listing Telegram communities in your niche, verifies they are real, and saves the good ones as 'pending' communities. It discovers — it does not join. (Discord servers are added manually by invite link.)"
   },
   {
     name: "Research",
@@ -72,6 +74,25 @@ const AGENTS: { name: string; icon: Icon; trigger: string; color: string; what: 
     trigger: "Automatic (per inbound DM)",
     color: "text-rose-500",
     what: "Handles 1:1 DM conversations with known leads. It answers questions, handles objections, and guides them toward your goal — speaking only from the brand info you provide."
+  }
+];
+
+const PLATFORMS: { name: string; icon: Icon; color: string; connect: string; communities: string; note: string }[] = [
+  {
+    name: "Telegram",
+    icon: Send,
+    color: "text-sky-500",
+    connect: "Add the account's phone number; Telegram sends a login code, then asks for the 2FA password if the account has one.",
+    communities: "Search finds Telegram groups for you. The Leader assigns each to an account and the gateway joins it and scrapes members.",
+    note: "Broadcast channels hide their member list — Orbis reaches those audiences through the channel's linked discussion group."
+  },
+  {
+    name: "Discord",
+    icon: Hash,
+    color: "text-indigo-500",
+    connect: "Paste the account's Discord user token — there is no phone or code step.",
+    communities: "Add a server yourself on the Communities page with its invite link, then assign it to a Discord account. The gateway joins, scrapes members, DMs prospects, and can post in channels.",
+    note: "Heads-up: automating Discord user accounts breaks Discord's Terms of Service and the account may be banned — use a disposable one."
   }
 ];
 
@@ -194,6 +215,40 @@ export default function HowToPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">{a.what}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      {/* Where it works */}
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <Network className="size-5 text-muted-foreground" />
+          <h2 className="text-lg font-semibold">Where Orbis works</h2>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Orbis runs the same loop on Telegram and Discord. The accounts you connect on the
+          Accounts page decide which platform each community uses — assign a community to a Telegram
+          account and it joins on Telegram, assign it to a Discord account and it joins on Discord.
+        </p>
+        <div className="grid gap-3 md:grid-cols-2">
+          {PLATFORMS.map((p) => (
+            <Card key={p.name}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <p.icon className={`size-5 ${p.color}`} />
+                  {p.name}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-2 text-sm text-muted-foreground">
+                <p>
+                  <span className="font-medium text-foreground">Connect:</span> {p.connect}
+                </p>
+                <p>
+                  <span className="font-medium text-foreground">Communities:</span> {p.communities}
+                </p>
+                <p className="italic">{p.note}</p>
               </CardContent>
             </Card>
           ))}
