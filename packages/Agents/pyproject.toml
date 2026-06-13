@@ -27,7 +27,6 @@ dependencies = [
     "scalar-fastapi>=1.8.2",
     "tqdm==4.67.1",
     "uvicorn>=0.34.0",
- 
 ]
 
 [tool.pytest.ini_options]
