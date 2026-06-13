@@ -23,6 +23,7 @@ import logging
 import discord
 
 from agents.constants.gateway import DISCORD_CONNECT_TIMEOUT
+from agents.gateway.discord.listeners import attach_listeners
 from agents.lib import crypto
 from agents.lib.store import SocialAccountStore
 
@@ -95,6 +96,7 @@ class DiscordGatewayClients:
             return False
 
         client = discord.Client()
+        attach_listeners(client, acc["brand_id"], acc["id"])
         start_task = asyncio.create_task(client.start(token))
         ready_task = asyncio.create_task(client.wait_until_ready())
         try:

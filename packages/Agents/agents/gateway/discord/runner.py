@@ -17,6 +17,7 @@ import logging
 
 from agents.gateway.discord.client_manager import DiscordGatewayClients
 from agents.gateway.discord.health import run_health_check
+from agents.gateway.discord.sender import run_sender
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +31,11 @@ async def run_discord_gateway(*, stop_event: asyncio.Event | None = None) -> Non
             "No Discord accounts connected; the health loop will onboard any added later."
         )
     try:
-        # Phase 4/5 add: run_discord_sender(clients), run_discord_joiner(clients).
+        # Inbound listeners fire via discord.py's on_message (attached per client);
+        # these are the polled background loops. The community joiner/scraper is
+        # added in a later phase.
         await asyncio.gather(
+            run_sender(clients, stop_event=stop_event),
             run_health_check(clients, stop_event=stop_event),
         )
     finally:
