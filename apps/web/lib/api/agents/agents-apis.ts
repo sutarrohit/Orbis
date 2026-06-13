@@ -35,6 +35,11 @@ export function verifyPassword(input: { phone: string; password: string }): Prom
   return request("/agents/accounts/verify-password", { method: "POST", body: JSON.stringify(input) });
 }
 
+/** Discord connect — a user account is identified by a single token (no OTP). */
+export function connectDiscord(input: { token: string }): Promise<LoginStepResult> {
+  return request("/agents/accounts/discord/connect", { method: "POST", body: JSON.stringify(input) });
+}
+
 /* ── Scheduler ─────────────────────────────────────────────────────────── */
 
 export type SchedulerAction = "start" | "pause" | "resume" | "stop";

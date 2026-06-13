@@ -1,5 +1,6 @@
 import { mutationOptions, queryOptions } from "@tanstack/react-query";
 import {
+  connectDiscord,
   getSchedulerStatus,
   runLeader,
   runResearch,
@@ -58,5 +59,12 @@ export function verifyPasswordMutationOptions() {
   return mutationOptions({
     mutationKey: ["agents", "accounts", "verify-password"],
     mutationFn: verifyPassword
+  });
+}
+
+export function connectDiscordMutationOptions() {
+  return mutationOptions({
+    mutationKey: ["agents", "accounts", "discord-connect"],
+    mutationFn: connectDiscord
   });
 }

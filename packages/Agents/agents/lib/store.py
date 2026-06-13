@@ -133,18 +133,28 @@ class CommunityStore:
 
     # ── Gateway side: join + mark ────────────────────────────────────────────
 
-    def pending_join_assigned(self, limit: int = 5) -> list[dict]:
+    def pending_join_assigned(
+        self, limit: int = 5, platform: str | None = None
+    ) -> list[dict]:
         """Communities awaiting a join that have an account assigned (gateway-wide).
 
         Returns dicts: ``id``, ``brand_id``, ``handle``, ``assigned_account_id``.
+        Pass ``platform`` to restrict to communities whose assigned account is on
+        that platform (``None`` = all platforms).
         """
+        sql = (
+            'SELECT c.id, c."brandId", c.handle, c."assignedAccountId" FROM community c '
+            'JOIN social_account a ON c."assignedAccountId" = a.id '
+            'WHERE c.status = %s::"CommunityStatus"'
+        )
+        params: list = ["pending_join"]
+        if platform is not None:
+            sql += ' AND a.platform = %s::"Platform"'
+            params.append(platform)
+        sql += ' ORDER BY c."createdAt" LIMIT %s'
+        params.append(limit)
         with db.cursor() as cur:
-            cur.execute(
-                'SELECT id, "brandId", handle, "assignedAccountId" FROM community '
-                'WHERE status = %s::"CommunityStatus" AND "assignedAccountId" IS NOT NULL '
-                'ORDER BY "createdAt" LIMIT %s',
-                ("pending_join", limit),
-            )
+            cur.execute(sql, tuple(params))
             return [
                 {"id": r[0], "brand_id": r[1], "handle": r[2], "assigned_account_id": r[3]}
                 for r in cur.fetchall()
@@ -188,17 +198,27 @@ class CommunityStore:
                 (discussion_chat_id, community_id),
             )
 
-    def joined_missing_discussion(self, limit: int = 20) -> list[dict]:
+    def joined_missing_discussion(
+        self, limit: int = 20, platform: str | None = None
+    ) -> list[dict]:
         """Joined communities whose linked discussion group hasn't been resolved yet
         (``discussionChatId = ''``). Returns dicts: ``id``, ``brand_id``,
-        ``group_chat_id``, ``assigned_account_id``. Used by the one-off backfill."""
+        ``group_chat_id``, ``assigned_account_id``. Used by the one-off backfill.
+        Pass ``platform`` to restrict to the assigned account's platform."""
+        sql = (
+            'SELECT c.id, c."brandId", c."groupChatId", c."assignedAccountId" FROM community c '
+            'JOIN social_account a ON c."assignedAccountId" = a.id '
+            'WHERE c.status = %s::"CommunityStatus" AND c."discussionChatId" = %s '
+            'AND c."groupChatId" <> %s'
+        )
+        params: list = ["joined", "", ""]
+        if platform is not None:
+            sql += ' AND a.platform = %s::"Platform"'
+            params.append(platform)
+        sql += ' LIMIT %s'
+        params.append(limit)
         with db.cursor() as cur:
-            cur.execute(
-                'SELECT id, "brandId", "groupChatId", "assignedAccountId" FROM community '
-                'WHERE status = %s::"CommunityStatus" AND "discussionChatId" = %s '
-                'AND "groupChatId" <> %s AND "assignedAccountId" IS NOT NULL LIMIT %s',
-                ("joined", "", "", limit),
-            )
+            cur.execute(sql, tuple(params))
             return [
                 {
                     "id": r[0],
@@ -209,18 +229,27 @@ class CommunityStore:
                 for r in cur.fetchall()
             ]
 
-    def pending_leave(self, limit: int = 10) -> list[dict]:
+    def pending_leave(self, limit: int = 10, platform: str | None = None) -> list[dict]:
         """Communities the dashboard flagged for removal (``pendingLeave=true``).
 
         Returns dicts: ``id``, ``handle``, ``group_chat_id``, ``assigned_account_id``.
         The gateway leaves the chat (if joined) and then hard-deletes the row.
+        Pass ``platform`` to restrict to the assigned account's platform; rows with
+        no assigned account (nothing to leave, just delete) are always included.
         """
+        sql = (
+            'SELECT c.id, c.handle, c."groupChatId", c."assignedAccountId" FROM community c '
+            'LEFT JOIN social_account a ON c."assignedAccountId" = a.id '
+            'WHERE c."pendingLeave" = true'
+        )
+        params: list = []
+        if platform is not None:
+            sql += ' AND (a.platform = %s::"Platform" OR c."assignedAccountId" IS NULL)'
+            params.append(platform)
+        sql += ' LIMIT %s'
+        params.append(limit)
         with db.cursor() as cur:
-            cur.execute(
-                'SELECT id, handle, "groupChatId", "assignedAccountId" FROM community '
-                'WHERE "pendingLeave" = true LIMIT %s',
-                (limit,),
-            )
+            cur.execute(sql, tuple(params))
             return [
                 {
                     "id": r[0],
@@ -587,16 +616,22 @@ class SocialAccountStore:
             )
             return cur.fetchall()
 
-    def all_active(self) -> list[dict]:
-        """Every active account WITH its (still-encrypted) session string, across
-        all brands. The gateway logs each one in. Skips accounts with no session."""
+    def all_active(self, platform: str | None = None) -> list[dict]:
+        """Every active account WITH its (still-encrypted) session string. The
+        gateway logs each one in. Skips accounts with no session. Pass ``platform``
+        so a per-platform gateway loads only its own accounts (``"telegram"`` /
+        ``"discord"``); ``None`` returns all platforms."""
+        sql = (
+            'SELECT id, "brandId", "externalId", handle, "sessionString", platform '
+            'FROM social_account WHERE status = %s::"SocialAccountStatus" '
+            'AND "sessionString" IS NOT NULL'
+        )
+        params: list = ["active"]
+        if platform is not None:
+            sql += ' AND platform = %s::"Platform"'
+            params.append(platform)
         with db.cursor() as cur:
-            cur.execute(
-                'SELECT id, "brandId", "externalId", handle, "sessionString" '
-                'FROM social_account WHERE status = %s::"SocialAccountStatus" '
-                'AND "sessionString" IS NOT NULL',
-                ("active",),
-            )
+            cur.execute(sql, tuple(params))
             return [
                 {
                     "id": r[0],
@@ -604,6 +639,7 @@ class SocialAccountStore:
                     "external_id": r[2],
                     "handle": r[3],
                     "session_string": r[4],
+                    "platform": r[5],
                 }
                 for r in cur.fetchall()
             ]
@@ -642,20 +678,23 @@ class SocialAccountStore:
         display_name: str | None = None,
         session_string: str | None = None,
         status: str = "active",
+        platform: str = "telegram",
     ) -> dict:
         """Insert or update an account keyed by ``(brandId, externalId)``.
 
         ``session_string`` must already be **encrypted** (see ``agents.lib.crypto``).
-        Returns the safe view of the stored row.
+        ``platform`` is ``"telegram"`` or ``"discord"``. Returns the safe view of
+        the stored row.
         """
         bid = db.resolve_brand_id(brand_id)
         with db.cursor() as cur:
             cur.execute(
                 'INSERT INTO social_account '
-                '(id, "brandId", "externalId", handle, phone, "displayName", '
+                '(id, "brandId", platform, "externalId", handle, phone, "displayName", '
                 '"sessionString", status, "updatedAt") '
-                'VALUES (%s, %s, %s, %s, %s, %s, %s, %s::"SocialAccountStatus", now()) '
+                'VALUES (%s, %s, %s::"Platform", %s, %s, %s, %s, %s, %s::"SocialAccountStatus", now()) '
                 'ON CONFLICT ("brandId", "externalId") DO UPDATE SET '
+                "platform = EXCLUDED.platform, "
                 "handle = EXCLUDED.handle, phone = EXCLUDED.phone, "
                 '"displayName" = EXCLUDED."displayName", '
                 '"sessionString" = EXCLUDED."sessionString", '
@@ -664,6 +703,7 @@ class SocialAccountStore:
                 (
                     db.new_id(),
                     bid,
+                    platform,
                     external_id,
                     handle,
                     phone,
@@ -730,49 +770,69 @@ class PendingSendStore:
     def queue(
         self,
         brand_id: str,
-        lead_id: str,
+        lead_id: str | None,
         account_id: str,
         message: str,
         stage: int,
         dedup_key: str,
+        *,
+        kind: str = "dm",
+        target_id: str | None = None,
     ) -> bool:
-        """Queue one DM (``status='queued'``). True if newly queued, False if a
-        row with the same ``(brandId, dedupKey)`` already exists."""
+        """Queue one outbound send (``status='queued'``). True if newly queued,
+        False if a row with the same ``(brandId, dedupKey)`` already exists.
+
+        ``kind='dm'`` targets the lead (``lead_id`` required); ``kind='channel_post'``
+        posts into ``target_id`` (a channel id) and needs no lead."""
         bid = db.resolve_brand_id(brand_id)
         with db.cursor() as cur:
             cur.execute(
                 'INSERT INTO pending_send '
-                '(id, "brandId", "leadId", "accountId", message, stage, status, "dedupKey") '
-                'VALUES (%s, %s, %s, %s, %s, %s, %s::"PendingSendStatus", %s) '
+                '(id, "brandId", "leadId", "accountId", kind, "targetId", message, '
+                'stage, status, "dedupKey") '
+                'VALUES (%s, %s, %s, %s, %s::"SendKind", %s, %s, %s, %s::"PendingSendStatus", %s) '
                 'ON CONFLICT ("brandId", "dedupKey") DO NOTHING',
-                (db.new_id(), bid, lead_id, account_id, message, stage, "queued", dedup_key),
+                (db.new_id(), bid, lead_id, account_id, kind, target_id, message,
+                 stage, "queued", dedup_key),
             )
             return cur.rowcount == 1
 
     # ── Gateway side: drain the queue and mark delivery ──────────────────────
 
-    def next_queued(self, limit: int = 20) -> list[dict]:
-        """Oldest queued DMs across all brands, with the recipient's Telegram id.
+    def next_queued(self, limit: int = 20, platform: str | None = None) -> list[dict]:
+        """Oldest queued sends, with the recipient's platform id (for DMs).
 
         Returns dicts: ``id`` (pending_send id), ``account_id`` (which account
-        sends), ``to_user_id`` (the lead's platform/Telegram id), ``message``,
-        ``stage``. The gateway uses this to deliver outbound DMs.
+        sends), ``to_user_id`` (the lead's platform id; None for channel posts),
+        ``kind`` (``dm`` | ``channel_post``), ``target_id`` (channel id for posts),
+        ``message``, ``stage``. Pass ``platform`` so a per-platform gateway only
+        drains its own accounts' sends (``None`` = all platforms).
         """
+        sql = (
+            'SELECT ps.id, ps."accountId", l."userId", ps.kind, ps."targetId", '
+            'ps.message, ps.stage '
+            'FROM pending_send ps '
+            'JOIN social_account a ON ps."accountId" = a.id '
+            'LEFT JOIN lead l ON ps."leadId" = l.id '
+            'WHERE ps.status = %s::"PendingSendStatus"'
+        )
+        params: list = ["queued"]
+        if platform is not None:
+            sql += ' AND a.platform = %s::"Platform"'
+            params.append(platform)
+        sql += ' ORDER BY ps."createdAt" LIMIT %s'
+        params.append(limit)
         with db.cursor() as cur:
-            cur.execute(
-                'SELECT ps.id, ps."accountId", l."userId", ps.message, ps.stage '
-                'FROM pending_send ps JOIN lead l ON ps."leadId" = l.id '
-                'WHERE ps.status = %s::"PendingSendStatus" '
-                'ORDER BY ps."createdAt" LIMIT %s',
-                ("queued", limit),
-            )
+            cur.execute(sql, tuple(params))
             return [
                 {
                     "id": r[0],
                     "account_id": r[1],
                     "to_user_id": r[2],
-                    "message": r[3],
-                    "stage": r[4],
+                    "kind": r[3],
+                    "target_id": r[4],
+                    "message": r[5],
+                    "stage": r[6],
                 }
                 for r in cur.fetchall()
             ]

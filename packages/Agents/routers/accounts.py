@@ -25,11 +25,13 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from agents.lib import crypto, telegram_auth
+from agents.lib import crypto, discord_auth, telegram_auth
+from agents.lib.discord_auth import DiscordAuthError
 from agents.lib.store import SocialAccountStore
 from agents.lib.telegram_auth import TelegramAuthError
 from agents.schemas.account import (
     AccountView,
+    ConnectTokenRequest,
     LoginStepResult,
     SendCodeRequest,
     VerifyCodeRequest,
@@ -89,6 +91,29 @@ async def verify_password(req: VerifyPasswordRequest) -> LoginStepResult:
     return LoginStepResult(
         status="connected", account=_store_account(req.brand_id, req.phone, result)
     )
+
+
+@router.post("/accounts/discord/connect", response_model=LoginStepResult)
+async def discord_connect(req: ConnectTokenRequest) -> LoginStepResult:
+    """Connect a Discord user account from its token (single step, no OTP).
+
+    The token is validated against Discord, then **encrypted** and stored exactly
+    like a Telegram session string. Never returned to the client.
+    """
+    try:
+        result = await discord_auth.connect_token(req.token)
+    except DiscordAuthError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    view = _store.upsert(
+        req.brand_id,
+        external_id=result["user_id"],
+        handle=result.get("username", ""),
+        display_name=result.get("display_name") or None,
+        session_string=crypto.encrypt(result["session_string"]),
+        status="active",
+        platform="discord",
+    )
+    return LoginStepResult(status="connected", account=AccountView(**view))
 
 
 @router.get("/accounts", response_model=list[AccountView])

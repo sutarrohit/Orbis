@@ -29,6 +29,13 @@ class VerifyPasswordRequest(BaseModel):
     password: str = Field(description="The account's 2FA cloud password.")
 
 
+class ConnectTokenRequest(BaseModel):
+    """Discord connect — a user account is identified by a single token (no OTP)."""
+
+    brand_id: str = Field(default="default", description="Brand the account belongs to.")
+    token: str = Field(description="The Discord user account token (login credential).")
+
+
 class AccountView(BaseModel):
     """A safe view of a stored account — never includes the session string."""
 
