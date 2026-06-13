@@ -81,8 +81,8 @@ const STEPS: { title: string; body: string }[] = [
     body: "Go to Settings and fill in your niche, voice, short description, website, and the About / Knowledge box. The agents only ever speak from what you put here — they never make up facts, so the more you add, the better they sound."
   },
   {
-    title: "Connect a Telegram account",
-    body: "Open Accounts and connect a Telegram account. This is the identity that joins communities and sends DMs. Nothing can join or message until at least one account is connected and active."
+    title: "Connect an account",
+    body: "Open Accounts and connect a Telegram account (phone + code) or a Discord account (paste its user token). This is the identity that joins communities and sends DMs. Nothing can join or message until at least one account is connected and active."
   },
   {
     title: "Find communities",
@@ -114,7 +114,7 @@ const PAGES: { name: string; icon: Icon; desc: string }[] = [
   { name: "Dashboard", icon: Rocket, desc: "Run agents manually and see what each one is doing right now." },
   { name: "Activity", icon: Activity, desc: "A live feed of every action the agents take." },
   { name: "Agent Config", icon: Bot, desc: "Tune each agent's persona, voice, and rules." },
-  { name: "Accounts", icon: CircleUser, desc: "Connect and manage the Telegram accounts that do the work." },
+  { name: "Accounts", icon: CircleUser, desc: "Connect and manage the Telegram & Discord accounts that do the work." },
   { name: "Communities", icon: Users, desc: "Every group found or joined, plus their members." },
   { name: "Leads", icon: Target, desc: "Scored prospects, their source community, and outreach status." },
   { name: "Learnings", icon: Lightbulb, desc: "Strategy notes the Leader writes for itself over time." },
@@ -135,10 +135,10 @@ export default function HowToPage() {
           <h1 className="text-2xl font-semibold">How to use Orbis</h1>
         </div>
         <p className="max-w-3xl text-muted-foreground">
-          Orbis is an autonomous growth system for Telegram. It finds communities where your
-          future customers hang out, joins them, listens, figures out who is worth talking to, and
-          reaches out with personalized DMs — run by a small squad of AI agents and coordinated by
-          a Leader. This page explains what each part does and how to get started.
+          Orbis is an autonomous growth system for Telegram and Discord. It finds communities
+          where your future customers hang out, joins them, listens, figures out who is worth
+          talking to, and reaches out with personalized DMs — run by a small squad of AI agents and
+          coordinated by a Leader. This page explains what each part does and how to get started.
         </p>
       </section>
 
@@ -291,8 +291,15 @@ export default function HowToPage() {
             </p>
             <p>
               <span className="font-medium text-foreground">Nothing sends without an active account.</span>{" "}
-              Joining communities and sending DMs both need a connected, active Telegram account on
-              the Accounts page.
+              Joining communities and sending DMs both need a connected, active Telegram or Discord
+              account on the Accounts page.
+            </p>
+            <p>
+              <span className="font-medium text-foreground">Discord servers are added by invite link.</span>{" "}
+              Search discovers Telegram communities automatically; for Discord, add a server on the
+              Communities page using its invite link, then assign it to a Discord account.
+              Heads-up: automating Discord user accounts is against Discord&apos;s Terms of Service
+              and the account may be banned — use a disposable one.
             </p>
           </CardContent>
         </Card>

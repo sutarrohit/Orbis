@@ -128,7 +128,7 @@ export function CommunityRow({ community, accounts }: { community: Community; ac
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete {community.name || community.handle}?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  The assigned account will leave the Telegram chat, and this community&apos;s
+                  The assigned account will leave the group/server, and this community&apos;s
                   scraped members and conversations will be removed. Leads already generated are
                   kept. This can&apos;t be undone.
                 </AlertDialogDescription>

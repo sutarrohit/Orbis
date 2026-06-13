@@ -66,20 +66,26 @@ export function AddCommunityDialog() {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add a community</DialogTitle>
-          <DialogDescription>Manually add a group for the agents to evaluate.</DialogDescription>
+          <DialogDescription>
+            Manually add a Telegram group or Discord server for the agents to evaluate.
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={onSubmit} className='flex flex-col gap-4'>
           <div className='flex flex-col gap-2'>
-            <Label htmlFor='handle'>Handle</Label>
+            <Label htmlFor='handle'>Handle or invite link</Label>
             <Input
               id='handle'
               value={handle}
               onChange={(e) => setHandle(e.target.value)}
-              placeholder='@groupname'
+              placeholder='@groupname or https://discord.gg/…'
               autoFocus
               required
             />
+            <p className='text-muted-foreground text-xs'>
+              A Telegram @handle / t.me link, or a Discord invite link. The platform follows the
+              account you assign it to.
+            </p>
           </div>
           <div className='flex flex-col gap-2'>
             <Label htmlFor='name'>Name</Label>
