@@ -1,16 +1,17 @@
 """
-agents/lib/discord_auth.py — Discord account login (user token)
+agents/lib/discord_auth.py — Discord bot login (bot token)
 ─────────────────────────────────────────────────────────────────
-Connect a Discord **user** account so the gateway can act as it. Unlike
-Telegram's multi-step OTP flow, a Discord user account is identified by a single
-**user token** the operator supplies. We validate it with one HTTP call
-(``GET /users/@me``) and return the account identity; the token itself is the
+Connect a Discord **bot** so the gateway can act as it. Unlike Telegram's
+multi-step OTP flow, a bot is identified by a single **bot token** the operator
+supplies (Developer Portal → Bot → Reset Token). We validate it with one HTTP
+call (``GET /users/@me``) and return the bot's identity; the token itself is the
 reusable credential (the caller ENCRYPTS it before storing).
 
-⚠️ User-token automation ("self-bots") violates Discord's Terms of Service and
-risks bans. Treat each connected account as disposable.
+The bot must be invited to each server via its OAuth2 URL (bot scope + Send
+Messages / Read Message History) and have the Message Content intent enabled
+(plus Server Members for member scraping).
 
-Uses discord.py-self (imported as ``discord``), which speaks the user API.
+Uses discord.py (imported as ``discord``); a bot token is auth'd as ``Bot ...``.
 """
 
 from __future__ import annotations
@@ -39,7 +40,9 @@ async def connect_token(token: str) -> dict:
 
     # A bare HTTP login (no gateway/websocket) is enough to validate the token
     # and read /users/@me — cheap, and we close the session straight after.
-    client = discord.Client()
+    # discord.py requires intents at construction; none are needed for a static
+    # login (we never open the gateway here).
+    client = discord.Client(intents=discord.Intents.none())
     try:
         data = await client.http.static_login(token)
     except discord.LoginFailure as exc:

@@ -30,10 +30,10 @@ class VerifyPasswordRequest(BaseModel):
 
 
 class ConnectTokenRequest(BaseModel):
-    """Discord connect — a user account is identified by a single token (no OTP)."""
+    """Discord connect — a bot is identified by a single bot token (no OTP)."""
 
     brand_id: str = Field(default="default", description="Brand the account belongs to.")
-    token: str = Field(description="The Discord user account token (login credential).")
+    token: str = Field(description="The Discord bot token (login credential).")
 
 
 class AccountView(BaseModel):

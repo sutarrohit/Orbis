@@ -24,9 +24,16 @@ import types
 import pytest
 
 # ── Make ``discord`` importable (real if installed, else a tiny fake) ─────────
-try:  # pragma: no cover - depends on the environment
-    import discord  # noqa: F401
-except Exception:  # pragma: no cover
+def _discord_is_complete() -> bool:
+    """True only if a full discord lib (with Intents + Client) is importable."""
+    try:
+        import discord  # noqa: F401
+    except Exception:
+        return False
+    return hasattr(discord, "Intents") and hasattr(discord, "Client")
+
+
+if not _discord_is_complete():  # use a controlled stub unless a full lib is present
     _fake = types.ModuleType("discord")
 
     class _LoginFailure(Exception):
@@ -42,9 +49,23 @@ except Exception:  # pragma: no cover
         def __init__(self, *a, **k):
             pass
 
+    class _Intents:  # discord.py requires intents at Client construction
+        def __init__(self):
+            self.message_content = False
+            self.members = False
+
+        @classmethod
+        def none(cls):
+            return cls()
+
+        @classmethod
+        def default(cls):
+            return cls()
+
     _fake.LoginFailure = _LoginFailure
     _fake.HTTPException = _HTTPException
     _fake.Client = _Client
+    _fake.Intents = _Intents
     sys.modules["discord"] = _fake
 
 import discord  # noqa: E402  (now guaranteed importable)
@@ -225,7 +246,7 @@ def _auth_client_factory(*, data=None, exc=None):
             return data
 
     class FakeClient:
-        def __init__(self):
+        def __init__(self, *args, **kwargs):  # accept intents=...
             self.http = FakeHttp()
 
         async def close(self):
@@ -299,19 +320,16 @@ class FakeGuild:
 
 
 class FakeJoinClient:
-    def __init__(self, guild, *, accept_raises=None):
-        self._guild = guild
-        self._accept_raises = accept_raises
-        self.accepted: list[str] = []
+    """A bot client: it's already in `guild` (invited via OAuth); get_guild
+    resolves it by id, returns None for any other id."""
 
-    async def accept_invite(self, handle):
-        self.accepted.append(handle)
-        if self._accept_raises is not None:
-            raise self._accept_raises
-        return self._guild  # a Guild (no .guild attr)
+    def __init__(self, guild):
+        self._guild = guild
 
     def get_guild(self, gid):
-        return self._guild
+        if self._guild is not None and gid == self._guild.id:
+            return self._guild
+        return None
 
 
 class FakeCommunityStore:
@@ -358,7 +376,7 @@ def test_joiner_joins_and_scrapes(monkeypatch):
     client = FakeJoinClient(guild)
     clients = FakeClients({"acc1": {"client": client}})
 
-    pending = [{"id": "c1", "brand_id": "b1", "handle": "https://discord.gg/x", "assigned_account_id": "acc1"}]
+    pending = [{"id": "c1", "brand_id": "b1", "handle": "42", "assigned_account_id": "acc1"}]
     comm = FakeCommunityStore(pending)
     gm = FakeGroupMemberStore()
     _wire_joiner(monkeypatch, comm, gm)
@@ -367,18 +385,17 @@ def test_joiner_joins_and_scrapes(monkeypatch):
 
     assert result["joined"] == 1
     assert comm.joined == [("c1", "42")]
-    assert client.accepted == ["https://discord.gg/x"]
     # Only the real, named member is scraped (bot + no-username skipped).
     assert [m.user_id for m in gm.upserted] == ["1"]
     assert gm.upserted[0].group_chat_id == "42"
     assert comm.notes == [("c1", "scraped 1 members")]
 
 
-def test_joiner_rejects_on_join_failure(monkeypatch):
-    client = FakeJoinClient(None, accept_raises=RuntimeError("invite expired"))
+def test_joiner_rejects_invalid_handle(monkeypatch):
+    client = FakeJoinClient(FakeGuild(42, []))
     clients = FakeClients({"acc1": {"client": client}})
 
-    pending = [{"id": "c1", "brand_id": "b1", "handle": "bad", "assigned_account_id": "acc1"}]
+    pending = [{"id": "c1", "brand_id": "b1", "handle": "not-a-server-id", "assigned_account_id": "acc1"}]
     comm = FakeCommunityStore(pending)
     gm = FakeGroupMemberStore()
     _wire_joiner(monkeypatch, comm, gm)
@@ -388,6 +405,22 @@ def test_joiner_rejects_on_join_failure(monkeypatch):
     assert result["rejected"] == 1
     assert comm.rejected == ["c1"]
     assert comm.joined == []
+
+
+def test_joiner_waits_when_bot_not_in_guild(monkeypatch):
+    client = FakeJoinClient(FakeGuild(42, []))  # bot is in guild 42, not 999
+    clients = FakeClients({"acc1": {"client": client}})
+
+    pending = [{"id": "c1", "brand_id": "b1", "handle": "999", "assigned_account_id": "acc1"}]
+    comm = FakeCommunityStore(pending)
+    gm = FakeGroupMemberStore()
+    _wire_joiner(monkeypatch, comm, gm)
+
+    result = asyncio.run(joiner.join_and_scrape_once(clients))
+
+    assert result["skipped"] == 1
+    assert comm.joined == []
+    assert comm.rejected == []
 
 
 def test_joiner_skips_when_account_not_connected(monkeypatch):

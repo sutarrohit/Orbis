@@ -37,7 +37,12 @@ HISTORY_LIMIT = 8  # how many prior messages to give the agent for context
 
 
 def attach_listeners(client, brand_id: str, account_id: str) -> None:
-    """Register the ``on_message`` handler on a (not-yet-started) client."""
+    """Register the ``on_message`` handler on a (not-yet-started) client.
+
+    ``discord.Client`` registers events by coroutine name via ``client.event``
+    (there's no ``add_listener`` — that's ``ext.commands.Bot``). One client only
+    ever has one ``on_message``, so a single registration is right.
+    """
 
     async def on_message(message) -> None:
         try:
@@ -45,7 +50,7 @@ def attach_listeners(client, brand_id: str, account_id: str) -> None:
         except Exception as exc:  # a handler error must not crash the client
             logger.exception("discord on_message error: %s", exc)
 
-    client.add_listener(on_message, "on_message")
+    client.event(on_message)
 
 
 async def _route(client, message, brand_id: str, account_id: str) -> None:

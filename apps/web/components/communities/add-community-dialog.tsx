@@ -97,18 +97,19 @@ export function AddCommunityDialog() {
             </div>
           </div>
           <div className='flex flex-col gap-2'>
-            <Label htmlFor='handle'>{platform === "discord" ? "Invite link" : "Handle or invite link"}</Label>
+            <Label htmlFor='handle'>{platform === "discord" ? "Server ID" : "Handle or invite link"}</Label>
             <Input
               id='handle'
               value={handle}
               onChange={(e) => setHandle(e.target.value)}
-              placeholder='@groupname or https://discord.gg/…'
+              placeholder={platform === "discord" ? "123456789012345678" : "@groupname or https://t.me/…"}
               autoFocus
               required
             />
             <p className='text-muted-foreground text-xs'>
-              A Telegram @handle / t.me link, or a Discord invite link. The platform follows the
-              account you assign it to.
+              {platform === "discord"
+                ? "Invite your bot to the server first, then paste the server ID (Discord → Developer Mode → right-click the server → Copy Server ID)."
+                : "A Telegram @handle / t.me link. The platform follows the account you assign it to."}
             </p>
           </div>
           <div className='flex flex-col gap-2'>

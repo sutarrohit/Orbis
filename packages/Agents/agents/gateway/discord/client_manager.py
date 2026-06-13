@@ -2,7 +2,7 @@
 agents/gateway/discord/client_manager.py
 ──────────────────────────────────────────
 Loads every active **Discord** account and holds one connected ``discord.Client``
-per account. Each account's encrypted user token is decrypted and used to log in.
+per account. Each account's encrypted bot token is decrypted and used to log in.
 
 discord.py's ``client.start(token)`` runs the client's event loop until the
 client disconnects, so we run it as a background asyncio task and wait for the
@@ -95,7 +95,13 @@ class DiscordGatewayClients:
             )
             return False
 
-        client = discord.Client()
+        # Bot gateway needs explicit intents: message content to read messages,
+        # members to scrape rosters. Both are privileged — enable them on the bot
+        # in the Developer Portal too, or those features stay empty.
+        intents = discord.Intents.default()
+        intents.message_content = True
+        intents.members = True
+        client = discord.Client(intents=intents)
         attach_listeners(client, acc["brand_id"], acc["id"])
         start_task = asyncio.create_task(client.start(token))
         ready_task = asyncio.create_task(client.wait_until_ready())

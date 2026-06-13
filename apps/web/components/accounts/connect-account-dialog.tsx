@@ -108,7 +108,7 @@ export function ConnectAccountDialog() {
   const showPicker = platform === "discord" || step === "phone";
 
   const submitLabel =
-    platform === "discord" ? "Connect" : step === "phone" ? "Send code" : step === "code" ? "Verify" : "Submit";
+    platform === "discord" ? "Connect Bot" : step === "phone" ? "Send code" : step === "code" ? "Verify" : "Submit";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -120,7 +120,7 @@ export function ConnectAccountDialog() {
           <DialogTitle>Connect an account</DialogTitle>
           <DialogDescription>
             {platform === "discord"
-              ? "Paste the Discord user token for the account."
+              ? "Paste your Discord bot token (Developer Portal → Bot → Reset Token)."
               : step === "phone"
                 ? "Enter the phone number for the Telegram account."
                 : step === "code"
@@ -153,19 +153,21 @@ export function ConnectAccountDialog() {
         <form onSubmit={onSubmit} className='flex flex-col gap-4'>
           {platform === "discord" && (
             <div className='flex flex-col gap-2'>
-              <Label htmlFor='token'>User token</Label>
+              <Label htmlFor='token'>Bot token</Label>
               <Input
                 id='token'
                 type='password'
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
-                placeholder='Discord user token'
+                placeholder='Discord bot token'
                 autoFocus
                 required
               />
               <p className='text-muted-foreground text-xs'>
-                Self-bot automation violates Discord&apos;s Terms of Service — the account may be banned. Use a
-                disposable account.
+                Create a bot at discord.com/developers/applications → Bot → Reset Token. Enable the
+                Message Content (and Server Members) intents, invite it to your server via OAuth2 →
+                URL Generator (bot scope + Send Messages &amp; Read Message History), then paste the
+                token here.
               </p>
             </div>
           )}

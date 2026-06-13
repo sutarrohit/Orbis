@@ -1,5 +1,5 @@
-"""The Discord side of the gateway — one ``discord.Client`` (user-token self-bot)
-per active Discord account, mirroring the Telegram gateway package.
+"""The Discord side of the gateway — one ``discord.Client`` (bot) per active
+Discord account, mirroring the Telegram gateway package.
 
 Unlike Pyrogram (where ``client.start()`` returns and the client runs in the
 background), discord.py's ``client.start(token)`` is the client's main run loop,

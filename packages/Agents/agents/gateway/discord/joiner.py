@@ -1,20 +1,22 @@
 """
-agents/gateway/discord/joiner.py — join + scrape (Discord)
+agents/gateway/discord/joiner.py — confirm + scrape (Discord)
 ─────────────────────────────────────────────────────────────
-Search discovers communities (``status=pending_join``); the Leader assigns each
-to an account. This loop **joins** the server (via its invite) and **scrapes**
+Search/operator add communities (``status=pending_join``); the Leader assigns
+each to a bot account. A **bot can't join via an invite** — an admin invites it
+through the bot's OAuth2 URL — so a Discord "community" is identified by its guild
+(server) id. This loop confirms the bot is in that guild and **scrapes** its
 members into the outbound pool (Research reads those).
 
-  pending_join + assigned account → accept_invite → set joined + groupChatId
-                                  → scrape members → group_member rows
+  pending_join + assigned bot in the guild → set joined + groupChatId
+                                           → scrape members → group_member rows
 
-A Discord "community" is a guild; ``handle`` is the invite link/code and
-``groupChatId`` is the guild id once joined. Unlike Telegram there's no
-broadcast-channel / linked-discussion concept, so this is just join → scrape.
+A Discord "community" is a guild; ``handle`` is the guild id and ``groupChatId``
+is the same id once confirmed. There's no broadcast-channel / linked-discussion
+concept, so this is just confirm-membership → scrape.
 
-Joining is paced hard (self-bots that join servers fast get flagged → bans). A
-hard join failure marks the community ``rejected``; a 429 just backs off and
-leaves it pending.
+If the bot isn't in the guild yet (not invited), the community is left pending so
+a later pass picks it up once the invite lands. A handle that isn't a valid guild
+id is marked ``rejected``. Member scraping needs the Server Members intent.
 """
 
 from __future__ import annotations
@@ -22,15 +24,12 @@ from __future__ import annotations
 import asyncio
 import logging
 
-import discord
-
 from agents.constants.gateway import (
     DISCORD_JOIN_BATCH,
     DISCORD_JOIN_PACE_SECONDS,
     DISCORD_SCRAPE_LIMIT,
     JOIN_POLL_INTERVAL,
 )
-from agents.gateway.discord import health
 from agents.lib.store import CommunityStore, GroupMemberStore
 from agents.schemas.research import GroupMemberRecord
 
@@ -92,52 +91,36 @@ async def join_and_scrape_once(clients, *, pace: float = 0.0) -> dict:
             skipped += 1  # assigned account not connected; try again later
             continue
         client = entry["client"]
+
+        # A bot can't join via invite — an admin invites it via the OAuth2 URL.
+        # The community handle is the guild (server) id; "joining" is confirming
+        # the bot is in that guild, then scraping it.
         try:
-            result = await client.accept_invite(c["handle"])
-        except discord.HTTPException as exc:
-            if getattr(exc, "status", None) == 429:
-                retry = float(getattr(exc, "retry_after", 0) or 10)
-                logger.warning(
-                    "Discord rate limited %ss joining %s — backing off.", retry, c["handle"]
-                )
-                await asyncio.sleep(retry)
-                continue  # leave pending
-            if health.is_account_dead(exc):
-                await health.handle_dead_account(
-                    clients, c["assigned_account_id"], str(exc)
-                )
-                skipped += 1
-                continue
-            logger.warning("Join %s failed: %s — marking rejected.", c["handle"], exc)
-            await asyncio.to_thread(communities.mark_rejected, c["id"])
-            rejected += 1
-            continue
-        except Exception as exc:
-            if health.is_account_dead(exc):
-                await health.handle_dead_account(
-                    clients, c["assigned_account_id"], str(exc)
-                )
-                skipped += 1
-                continue
-            logger.warning("Join %s failed: %s — marking rejected.", c["handle"], exc)
+            guild_id = int(c["handle"])
+        except (TypeError, ValueError):
+            logger.warning(
+                "Discord community handle %r is not a server id — marking rejected.",
+                c["handle"],
+            )
             await asyncio.to_thread(communities.mark_rejected, c["id"])
             rejected += 1
             continue
 
-        # accept_invite may return a Guild or an Invite (with .guild) depending on
-        # the fork — handle both.
-        guild = getattr(result, "guild", None) or result
-        guild_id = str(guild.id)
-        await asyncio.to_thread(communities.mark_joined, c["id"], guild_id)
+        guild = client.get_guild(guild_id)
+        if guild is None:
+            # The bot hasn't been invited to this server yet — wait for the invite.
+            skipped += 1
+            continue
+
+        gid = str(guild_id)
+        await asyncio.to_thread(communities.mark_joined, c["id"], gid)
         joined += 1
 
-        # Prefer the connected guild object (its member cache / fetch works).
-        live_guild = client.get_guild(int(guild_id)) or guild
         note = ""
         try:
-            members = await _scrape_members(live_guild, c["brand_id"], guild_id)
+            members = await _scrape_members(guild, c["brand_id"], gid)
         except Exception as exc:
-            logger.warning("Scrape of guild %s failed: %s", guild_id, exc)
+            logger.warning("Scrape of guild %s failed: %s", gid, exc)
             members = []
             note = "member scrape failed"
         if members:
@@ -145,8 +128,8 @@ async def join_and_scrape_once(clients, *, pace: float = 0.0) -> dict:
             scraped += ins
             note = f"scraped {ins} members"
         elif not note:
-            note = "no members scraped (roster hidden or empty)"
-        logger.info("Joined guild %s (%s) — %s", c["handle"], guild_id, note)
+            note = "no members scraped (enable the Server Members intent)"
+        logger.info("Joined guild %s — %s", gid, note)
         await asyncio.to_thread(communities.set_note, c["id"], note)
 
         if pace:

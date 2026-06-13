@@ -90,9 +90,9 @@ const PLATFORMS: { name: string; icon: Icon; color: string; connect: string; com
     name: "Discord",
     icon: Hash,
     color: "text-indigo-500",
-    connect: "Paste the account's Discord user token — there is no phone or code step.",
-    communities: "Add a server yourself on the Communities page with its invite link, then assign it to a Discord account. The gateway joins, scrapes members, DMs prospects, and can post in channels.",
-    note: "Heads-up: automating Discord user accounts breaks Discord's Terms of Service and the account may be banned — use a disposable one."
+    connect: "Create a bot in the Discord Developer Portal, enable the Message Content (and Server Members) intents, and paste its bot token.",
+    communities: "Invite the bot to your server via its OAuth2 URL, then add the server on the Communities page by its server ID and assign it to the bot account. The bot scrapes members, posts in channels, and DMs prospects who share the server.",
+    note: "Bots can only DM members who share a server and have DMs open; member scraping needs the Server Members intent."
   }
 ];
 
@@ -103,7 +103,7 @@ const STEPS: { title: string; body: string }[] = [
   },
   {
     title: "Connect an account",
-    body: "Open Accounts and connect a Telegram account (phone + code) or a Discord account (paste its user token). This is the identity that joins communities and sends DMs. Nothing can join or message until at least one account is connected and active."
+    body: "Open Accounts and connect a Telegram account (phone + code) or a Discord bot (create it in the Developer Portal and paste its bot token). This is the identity that joins communities and sends DMs. Nothing can join or message until at least one account is connected and active."
   },
   {
     title: "Find communities",
@@ -350,11 +350,10 @@ export default function HowToPage() {
               account on the Accounts page.
             </p>
             <p>
-              <span className="font-medium text-foreground">Discord servers are added by invite link.</span>{" "}
-              Search discovers Telegram communities automatically; for Discord, add a server on the
-              Communities page using its invite link, then assign it to a Discord account.
-              Heads-up: automating Discord user accounts is against Discord&apos;s Terms of Service
-              and the account may be banned — use a disposable one.
+              <span className="font-medium text-foreground">Discord uses a bot you invite.</span>{" "}
+              Search discovers Telegram communities automatically; for Discord, invite your bot to a
+              server via its OAuth2 URL, then add the server on the Communities page by its server ID
+              and assign it to the bot account.
             </p>
           </CardContent>
         </Card>
