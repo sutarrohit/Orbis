@@ -96,6 +96,14 @@ const PLATFORMS: { name: string; icon: Icon; color: string; connect: string; com
   }
 ];
 
+const DISCORD_SETUP: string[] = [
+  "Go to discord.com/developers/applications and click New Application.",
+  "Open Bot in the sidebar, click Reset Token, and copy the token.",
+  "On the Bot page, under Privileged Gateway Intents, enable the Message Content Intent (and Server Members Intent if you want member scraping).",
+  "Go to OAuth2 → URL Generator: check the bot scope, then the Send Messages + Read Message History permissions, and open the generated URL to invite the bot to your server.",
+  "On the Accounts page choose Discord, paste the bot token, and click Connect Bot. Then add your server on the Communities page by its server ID (Developer Mode → right-click the server → Copy Server ID)."
+];
+
 const STEPS: { title: string; body: string }[] = [
   {
     title: "Describe your brand",
@@ -253,6 +261,30 @@ export default function HowToPage() {
             </Card>
           ))}
         </div>
+      </section>
+
+      {/* Set up a Discord bot */}
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <Hash className="size-5 text-muted-foreground" />
+          <h2 className="text-lg font-semibold">Set up a Discord bot</h2>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Discord runs through a bot you create and invite. (Telegram needs none of this — just
+          connect the account with its phone number.)
+        </p>
+        <Card>
+          <CardContent className="flex flex-col divide-y">
+            {DISCORD_SETUP.map((s, i) => (
+              <div key={i} className="flex gap-3 py-2.5 first:pt-0 last:pb-0">
+                <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+                  {i + 1}
+                </div>
+                <p className="text-sm text-muted-foreground">{s}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </section>
 
       {/* Getting started */}
