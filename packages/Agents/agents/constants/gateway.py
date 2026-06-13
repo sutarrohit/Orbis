@@ -28,3 +28,4 @@ DISCORD_SEND_BATCH = 10  # max queued Discord sends drained per pass
 DISCORD_JOIN_PACE_SECONDS = 15  # pause between server joins (accepting invites)
 DISCORD_JOIN_BATCH = 3  # max servers joined per pass
 DISCORD_SCRAPE_LIMIT = 200  # max members scraped per server (v1 cap)
+DISCORD_CONNECT_TIMEOUT = 30  # seconds to wait for a client to reach READY on login
