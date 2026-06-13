@@ -1,11 +1,12 @@
 import { z } from "@hono/zod-openapi";
 import { dateField, nullableDateField } from "./common.schema.js";
-import { PendingSendStatusEnum, SendKindEnum } from "./enums.schema.js";
+import { PendingSendStatusEnum, PlatformEnum, SendKindEnum } from "./enums.schema.js";
 
 export const ConversationSchema = z
   .object({
     id: z.string().uuid(),
     brandId: z.string().uuid(),
+    platform: PlatformEnum,
     userId: z.string(),
     username: z.string(),
     groupChatId: z.string(),

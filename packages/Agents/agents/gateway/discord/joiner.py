@@ -60,6 +60,7 @@ async def _scrape_members(guild, brand_id: str, group_chat_id: str) -> list:
         members.append(
             GroupMemberRecord(
                 brand_id=brand_id,
+                platform="discord",
                 user_id=uid,
                 username=name,
                 group_chat_id=group_chat_id,

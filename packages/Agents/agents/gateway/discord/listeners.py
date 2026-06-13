@@ -94,6 +94,7 @@ async def _capture_member(brand_id: str, sender, group_chat_id: str) -> None:
         [
             GroupMemberRecord(
                 brand_id=brand_id,
+                platform="discord",
                 user_id=str(sender.id),
                 username=username,
                 group_chat_id=group_chat_id,
@@ -138,6 +139,7 @@ async def _handle_dm(client, message, brand_id: str, account_id: str) -> None:
         getattr(sender, "name", "") or "",
         "",
         message.content,
+        "discord",
     )
     if reply.sent and reply.decision.message:
         await message.channel.send(reply.decision.message)
@@ -167,6 +169,7 @@ async def _handle_group(client, message, brand_id: str, account_id: str) -> None
     ctx = TalkContext(
         brand_id=brand_id,
         account_id=account_id,
+        platform="discord",
         group_chat_id=group_chat_id,
         message_text=message.content,
         sender_user_id=str(sender.id),
@@ -185,6 +188,7 @@ async def _handle_group(client, message, brand_id: str, account_id: str) -> None
         getattr(sender, "name", "") or "",
         group_chat_id,
         message.content,
+        "discord",
     )
     # Active poster → outbound prospect pool. Idempotent, so reposts are a no-op.
     await _capture_member(brand_id, sender, group_chat_id)

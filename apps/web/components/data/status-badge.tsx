@@ -5,6 +5,7 @@ import type {
   InterestLevel,
   LeadStatus,
   PendingSendStatus,
+  Platform,
   SocialAccountStatus
 } from "@/lib/api/enums";
 
@@ -51,13 +52,19 @@ const SEND: Record<PendingSendStatus, Entry> = {
   failed: { label: "Failed", variant: "destructive" }
 };
 
+const PLATFORM: Record<Platform, Entry> = {
+  telegram: { label: "Telegram", variant: "secondary" },
+  discord: { label: "Discord", variant: "secondary" }
+};
+
 const MAPS = {
   lead: LEAD,
   interest: INTEREST,
   community: COMMUNITY,
   account: ACCOUNT,
   agent: AGENT,
-  send: SEND
+  send: SEND,
+  platform: PLATFORM
 } as const;
 
 type Kind = keyof typeof MAPS;

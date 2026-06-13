@@ -66,7 +66,10 @@ export function CommunityRow({ community, accounts }: { community: Community; ac
   return (
     <TableRow>
       <TableCell>
-        <div className='font-medium'>{community.name || community.handle}</div>
+        <div className='flex items-center gap-2'>
+          <span className='font-medium'>{community.name || community.handle}</span>
+          <StatusBadge kind='platform' value={community.platform} />
+        </div>
         <div className='text-xs text-muted-foreground'>{community.handle}</div>
         {community.note ? (
           <div className='text-xs italic text-muted-foreground'>{community.note}</div>

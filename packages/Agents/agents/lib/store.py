@@ -338,15 +338,16 @@ class LeadStore:
         with db.cursor() as cur:
             cur.execute(
                 'INSERT INTO lead '
-                '(id, "brandId", "userId", username, score, "interestLevel", '
+                '(id, "brandId", platform, "userId", username, score, "interestLevel", '
                 'status, source, note, "painPoints", "recommendedApproach", '
                 '"sourceGroupChatId", "lastOutreachAt", "updatedAt") '
-                'VALUES (%s, %s, %s, %s, %s, %s::"InterestLevel", %s::"LeadStatus", '
+                'VALUES (%s, %s, %s::"Platform", %s, %s, %s, %s::"InterestLevel", %s::"LeadStatus", '
                 '%s::"LeadSource", %s, %s, %s, %s, %s, now()) '
                 'ON CONFLICT ("brandId", "userId") DO NOTHING',
                 (
                     db.new_id(),
                     bid,
+                    record.platform,
                     record.user_id,
                     record.username,
                     record.score,
@@ -458,7 +459,7 @@ class ConversationStore:
     Research only reads these; the gateway writes them.
     """
 
-    _COLUMNS = '"brandId", "userId", username, "groupChatId", text, ts'
+    _COLUMNS = '"brandId", "userId", username, "groupChatId", text, ts, platform'
 
     @staticmethod
     def _row_to_record(r: tuple) -> ConversationRecord:
@@ -469,6 +470,7 @@ class ConversationStore:
             group_chat_id=r[3],
             text=r[4],
             ts=_iso(r[5]),
+            platform=r[6],
         )
 
     def all(self) -> list[ConversationRecord]:
@@ -492,19 +494,21 @@ class ConversationStore:
         username: str,
         group_chat_id: str,
         text: str,
+        platform: str = "telegram",
     ) -> None:
         """Record an inbound message (the gateway writes these; Research reads).
 
         Idempotent on the natural key ``(brandId, userId, groupChatId, ts)``.
+        ``platform`` is ``"telegram"`` or ``"discord"``.
         """
         bid = db.resolve_brand_id(brand_id)
         with db.cursor() as cur:
             cur.execute(
                 'INSERT INTO conversation '
-                '(id, "brandId", "userId", username, "groupChatId", text, ts) '
-                "VALUES (%s, %s, %s, %s, %s, %s, now()) "
+                '(id, "brandId", platform, "userId", username, "groupChatId", text, ts) '
+                'VALUES (%s, %s, %s::"Platform", %s, %s, %s, %s, now()) '
                 'ON CONFLICT ("brandId", "userId", "groupChatId", ts) DO NOTHING',
-                (db.new_id(), bid, user_id, username, group_chat_id, text),
+                (db.new_id(), bid, platform, user_id, username, group_chat_id, text),
             )
 
 
@@ -515,7 +519,7 @@ class GroupMemberStore:
     not already leads; the gateway writes them after joining and scraping a group.
     """
 
-    _COLUMNS = '"brandId", "userId", username, "groupChatId", bio, "activityNote"'
+    _COLUMNS = '"brandId", "userId", username, "groupChatId", bio, "activityNote", platform'
 
     @staticmethod
     def _row_to_record(r: tuple) -> GroupMemberRecord:
@@ -526,6 +530,7 @@ class GroupMemberStore:
             group_chat_id=r[3],
             bio=r[4],
             activity_note=r[5],
+            platform=r[6],
         )
 
     def all(self) -> list[GroupMemberRecord]:
@@ -557,13 +562,14 @@ class GroupMemberStore:
             for rec in records:
                 cur.execute(
                     'INSERT INTO group_member '
-                    '(id, "brandId", "userId", username, "groupChatId", bio, '
+                    '(id, "brandId", platform, "userId", username, "groupChatId", bio, '
                     '"activityNote", "updatedAt") '
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s, now()) "
+                    'VALUES (%s, %s, %s::"Platform", %s, %s, %s, %s, %s, now()) '
                     'ON CONFLICT ("brandId", "userId", "groupChatId") DO NOTHING',
                     (
                         db.new_id(),
                         bid,
+                        rec.platform,
                         rec.user_id,
                         rec.username,
                         rec.group_chat_id,

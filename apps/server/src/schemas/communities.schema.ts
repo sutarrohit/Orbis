@@ -1,6 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import { dateField } from "./common.schema.js";
-import { CommunityStatusEnum } from "./enums.schema.js";
+import { CommunityStatusEnum, PlatformEnum } from "./enums.schema.js";
 
 const AssignedAccountSchema = z
   .object({
@@ -14,6 +14,7 @@ export const CommunitySchema = z
   .object({
     id: z.string().uuid(),
     brandId: z.string().uuid(),
+    platform: PlatformEnum,
     handle: z.string(),
     name: z.string(),
     nicheRelevance: z.number().int(),
@@ -35,6 +36,7 @@ export const CommunitySchema = z
 export const CreateCommunitySchema = z
   .object({
     handle: z.string().min(1),
+    platform: PlatformEnum.default("telegram"),
     name: z.string().default(""),
     nicheRelevance: z.number().int().min(0).max(100).default(0),
     source: z.string().default("search"),

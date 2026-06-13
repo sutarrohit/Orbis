@@ -51,6 +51,7 @@ class ConversationRecord(BaseModel):
     """
 
     brand_id: str
+    platform: str = Field(default="telegram", description="telegram | discord.")
     user_id: str = Field(description="The person who spoke.")
     username: str = Field(default="", description="Their '@handle', if any.")
     group_chat_id: str = Field(default="", description="Where it happened.")
@@ -66,6 +67,7 @@ class GroupMemberRecord(BaseModel):
     """
 
     brand_id: str
+    platform: str = Field(default="telegram", description="telegram | discord.")
     user_id: str
     username: str = Field(default="", description="Their '@handle' (no username → skip).")
     group_chat_id: str = Field(default="", description="The group they were scraped from.")
