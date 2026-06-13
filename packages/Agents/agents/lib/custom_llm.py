@@ -68,6 +68,11 @@ def _text_from_response(response: dict) -> str:
 
 def _consume_sse(resp: requests.Response) -> str:
     """Parse a Responses-API SSE stream and assemble the output text."""
+    # `requests` defaults any text/* response with no explicit charset to
+    # ISO-8859-1. The proxy streams UTF-8 text/event-stream without a charset, so
+    # without this `iter_lines(decode_unicode=True)` decodes as Latin-1 and
+    # multi-byte chars arrive mangled (e.g. a "’" apostrophe becomes "â€™").
+    resp.encoding = "utf-8"
     pieces: list[str] = []
     for raw in resp.iter_lines(decode_unicode=True):
         if not raw or not raw.startswith("data:"):
